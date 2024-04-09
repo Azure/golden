@@ -29,7 +29,7 @@ type Block interface {
 	AddressLength() int
 	CanExecutePrePlan() bool
 	getDownstreams() []Block
-	getForEach() *forEach
+	getForEach() *ForEach
 	markExpanded()
 	isReadyForRead() bool
 	markReady()
@@ -167,8 +167,8 @@ func blockAddress(b *HclBlock) string {
 	sb.WriteString(b.Block.Type)
 	sb.WriteString(".")
 	sb.WriteString(concatLabels(b.Block.Labels))
-	if b.forEach != nil {
-		sb.WriteString(fmt.Sprintf("[%s]", CtyValueToString(b.forEach.key)))
+	if b.ForEach != nil {
+		sb.WriteString(fmt.Sprintf("[%s]", CtyValueToString(b.ForEach.key)))
 	}
 	return sb.String()
 }

@@ -7,17 +7,17 @@ import (
 
 type HclBlock struct {
 	*hclsyntax.Block
-	*forEach
+	*ForEach
 }
 
-func NewHclBlock(hb *hclsyntax.Block, each *forEach) *HclBlock {
+func NewHclBlock(hb *hclsyntax.Block, each *ForEach) *HclBlock {
 	return &HclBlock{
 		Block:   hb,
-		forEach: each,
+		ForEach: each,
 	}
 }
 
-type forEach struct {
+type ForEach struct {
 	key   cty.Value
 	value cty.Value
 }

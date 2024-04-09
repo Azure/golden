@@ -40,7 +40,7 @@ func RegisterBlock(t Block) {
 	registry[t.Type()] = func(c Config, hb *HclBlock) Block {
 		newBlock := reflect.New(reflect.TypeOf(t).Elem()).Elem()
 		newBaseBlock := NewBaseBlock(c, hb)
-		newBaseBlock.setForEach(hb.forEach)
+		newBaseBlock.setForEach(hb.ForEach)
 		newBaseBlock.setMetaNestedBlock()
 		newBlock.FieldByName("BaseBlock").Set(reflect.ValueOf(newBaseBlock))
 		b := newBlock.Addr().Interface().(Block)
