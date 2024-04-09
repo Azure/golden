@@ -18,10 +18,6 @@ func (c *BaseConfig) Context() context.Context {
 	return c.ctx
 }
 
-func (c *BaseConfig) dag() *Dag {
-	return c.d
-}
-
 func (c *BaseConfig) blocksByTypes() map[string][]Block {
 	r := make(map[string][]Block)
 	for _, b := range blocks(c) {
