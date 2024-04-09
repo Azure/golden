@@ -16,7 +16,7 @@ type BaseBlock struct {
 	name          string
 	id            string
 	blockAddress  string
-	forEach       *forEach
+	forEach       *ForEach
 	hasExpanded   bool
 	readyForRead  bool
 	preConditions []PreCondition
@@ -125,10 +125,10 @@ func (bb *BaseBlock) getDownstreams() []Block {
 	return blocks
 }
 
-func (bb *BaseBlock) setForEach(each *forEach) {
+func (bb *BaseBlock) setForEach(each *ForEach) {
 	bb.forEach = each
 }
-func (bb *BaseBlock) getForEach() *forEach {
+func (bb *BaseBlock) getForEach() *ForEach {
 	return bb.forEach
 }
 
