@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"path/filepath"
 	"testing"
 
@@ -61,13 +62,17 @@ func loadHclBlocks(ignoreUnsupportedBlock bool, dir string) ([]*HclBlock, error)
 			err = multierror.Append(err, fsErr)
 			continue
 		}
-		file, diag := hclsyntax.ParseConfig(content, filename, hcl.InitialPos)
+		readFile, diag := hclsyntax.ParseConfig(content, filename, hcl.InitialPos)
 		if diag.HasErrors() {
 			err = multierror.Append(err, diag.Errs()...)
 			continue
 		}
-		body := file.Body.(*hclsyntax.Body)
-		blocks = append(blocks, AsHclBlocks(body.Blocks)...)
+		writeFile, diag := hclwrite.ParseConfig(content, filename, hcl.InitialPos)
+		if diag.HasErrors() {
+			err = multierror.Append(err, diag.Errs()...)
+			continue
+		}
+		blocks = append(blocks, AsHclBlocks(readFile.Body.(*hclsyntax.Body).Blocks, writeFile.Body().Blocks())...)
 	}
 	if err != nil {
 		return nil, err

@@ -85,7 +85,8 @@ func (c *BaseConfig) runDag(onReady func(Block) error) error {
 
 func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	var expandedBlocks []Block
-	attr, ok := b.HclBlock().Body.Attributes["for_each"]
+	hclBlock := b.HclBlock()
+	attr, ok := hclBlock.Body.Attributes["for_each"]
 	if !ok || b.getForEach() != nil {
 		return nil, nil
 	}
@@ -108,7 +109,7 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	iterator := forEachValue.ElementIterator()
 	for iterator.Next() {
 		key, value := iterator.Element()
-		newBlock := NewHclBlock(b.HclBlock().Block, &ForEach{key: key, value: value})
+		newBlock := NewHclBlock(hclBlock.Block, hclBlock.wb, NewForEach(key, value))
 		nb, err := wrapBlock(c, newBlock)
 		if err != nil {
 			return nil, err

@@ -2,19 +2,40 @@ package golden
 
 import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 )
 
 type HclBlock struct {
 	*hclsyntax.Block
+	wb *hclwrite.Block
 	*ForEach
+	attributes map[string]*HclAttribute
+	blocks     []*HclBlock
 }
 
-func NewHclBlock(hb *hclsyntax.Block, each *ForEach) *HclBlock {
-	return &HclBlock{
-		Block:   hb,
-		ForEach: each,
+func NewHclBlock(rb *hclsyntax.Block, wb *hclwrite.Block, each *ForEach) *HclBlock {
+	hb := &HclBlock{
+		Block:      rb,
+		wb:         wb,
+		ForEach:    each,
+		attributes: make(map[string]*HclAttribute),
 	}
+	for n, ra := range rb.Body.Attributes {
+		hb.attributes[n] = NewHclAttribute(ra, wb.Body().Attributes()[n])
+	}
+	for i, nrb := range rb.Body.Blocks {
+		hb.blocks = append(hb.blocks, NewHclBlock(nrb, wb.Body().Blocks()[i] /*TODO: dynamic support in the future*/, nil))
+	}
+	return hb
+}
+
+func (hb *HclBlock) Attributes() map[string]*HclAttribute {
+	return hb.attributes
+}
+
+func (hb *HclBlock) NestedBlocks() []*HclBlock {
+	return hb.blocks
 }
 
 type ForEach struct {
@@ -22,18 +43,26 @@ type ForEach struct {
 	value cty.Value
 }
 
-func AsHclBlocks(bs hclsyntax.Blocks) []*HclBlock {
+func NewForEach(key, value cty.Value) *ForEach {
+	return &ForEach{
+		key:   key,
+		value: value,
+	}
+}
+
+func AsHclBlocks(syntaxBlocks hclsyntax.Blocks, writeBlocks []*hclwrite.Block) []*HclBlock {
 	var blocks []*HclBlock
-	for _, b := range bs {
-		var bs = readRawHclBlock(b)
-		for _, hb := range bs {
-			blocks = append(blocks, NewHclBlock(hb, nil))
+	for i, b := range syntaxBlocks {
+		var rbs = readRawHclSyntaxBlock(b)
+		var wbs = readRawHclWriteBlock(writeBlocks[i])
+		for i, hb := range rbs {
+			blocks = append(blocks, NewHclBlock(hb, wbs[i], nil))
 		}
 	}
 	return blocks
 }
 
-func readRawHclBlock(b *hclsyntax.Block) []*hclsyntax.Block {
+func readRawHclSyntaxBlock(b *hclsyntax.Block) []*hclsyntax.Block {
 	if b.Type != "locals" {
 		return []*hclsyntax.Block{b}
 	}
@@ -56,6 +85,19 @@ func readRawHclBlock(b *hclsyntax.Block) []*hclsyntax.Block {
 				EndRange: attr.SrcRange,
 			},
 		})
+	}
+	return newBlocks
+}
+
+func readRawHclWriteBlock(b *hclwrite.Block) []*hclwrite.Block {
+	if b.Type() != "locals" {
+		return []*hclwrite.Block{b}
+	}
+	var newBlocks []*hclwrite.Block
+	for n, attr := range b.Body().Attributes() {
+		nb := hclwrite.NewBlock("local", []string{"", n})
+		nb.Body().SetAttributeRaw("value", attr.Expr().BuildTokens(hclwrite.Tokens{}))
+		newBlocks = append(newBlocks, nb)
 	}
 	return newBlocks
 }
