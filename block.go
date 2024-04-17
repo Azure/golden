@@ -37,6 +37,9 @@ type Block interface {
 }
 
 func BlockToString(f Block) string {
+	if s, ok := f.(fmt.Stringer); ok {
+		return s.String()
+	}
 	marshal, _ := json.Marshal(f)
 	return string(marshal)
 }

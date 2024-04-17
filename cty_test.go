@@ -139,6 +139,11 @@ func TestToCtyValue(t *testing.T) {
 				}),
 			}),
 		},
+		{
+			name:  "return directly input is already a cty.Value, allow users to customize a field's serialization",
+			input: cty.StringVal("hello"),
+			want:  cty.StringVal("hello"),
+		},
 	}
 
 	for _, tt := range tests {

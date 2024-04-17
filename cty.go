@@ -10,7 +10,9 @@ import (
 
 // ToCtyValue is a function that converts a primary/collection type to cty.Value
 func ToCtyValue(input any) cty.Value {
-
+	if v, isCtyValue := input.(cty.Value); isCtyValue {
+		return v
+	}
 	val := reflect.ValueOf(input)
 
 	switch val.Kind() {
