@@ -23,11 +23,15 @@ type BaseBlock struct {
 }
 
 func NewBaseBlock(c Config, hb *HclBlock) *BaseBlock {
+	n := ""
+	if hb != nil {
+		n = hb.Labels[1]
+	}
 	bb := &BaseBlock{
 		c:            c,
 		hb:           hb,
 		blockAddress: blockAddress(hb),
-		name:         hb.Labels[1],
+		name:         n,
 		id:           uuid.NewString(),
 	}
 	return bb
