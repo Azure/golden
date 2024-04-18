@@ -111,6 +111,10 @@ func (bb *BaseBlock) PreConditionCheck(ctx *hcl.EvalContext) ([]PreCondition, er
 	return failedChecks, err
 }
 
+func (bb *BaseBlock) Config() Config {
+	return bb.c
+}
+
 func (bb *BaseBlock) forEachDefined() bool {
 	_, forEach := bb.HclBlock().Body.Attributes["for_each"]
 	return forEach
