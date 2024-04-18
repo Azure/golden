@@ -166,6 +166,9 @@ func concatLabels(labels []string) string {
 }
 
 func blockAddress(b *HclBlock) string {
+	if b == nil {
+		return ""
+	}
 	sb := strings.Builder{}
 	sb.WriteString(b.Block.Type)
 	sb.WriteString(".")
