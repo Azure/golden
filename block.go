@@ -52,10 +52,7 @@ func Decode(b Block) error {
 	hb := b.HclBlock()
 	evalContext := b.EvalContext()
 	if decodeBase, ok := b.(CustomDecodeBase); ok {
-		err := decodeBase.Decode(hb, evalContext)
-		if err != nil {
-			return err
-		}
+		return decodeBase.Decode(hb, evalContext)
 	}
 	diag := gohcl.DecodeBody(cleanBodyForDecode(hb), evalContext, b)
 	if diag.HasErrors() {
