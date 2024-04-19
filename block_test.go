@@ -147,6 +147,8 @@ func (c customizedStringBlock) String() string {
 	return c.Input
 }
 
+func (c fakeBlock) Config() Config { panic("implement me") }
+
 func (c fakeBlock) Id() string {
 	panic("implement me")
 }
