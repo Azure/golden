@@ -110,7 +110,7 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	for iterator.Next() {
 		key, value := iterator.Element()
 		newBlock := NewHclBlock(hclBlock.Block, hclBlock.wb, NewForEach(key, value))
-		nb, err := wrapBlock(c, newBlock)
+		nb, err := wrapBlock(b.Config(), newBlock)
 		if err != nil {
 			return nil, err
 		}

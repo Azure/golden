@@ -28,6 +28,7 @@ type Block interface {
 	PreConditionCheck(*hcl.EvalContext) ([]PreCondition, error)
 	AddressLength() int
 	CanExecutePrePlan() bool
+	Config() Config
 	getDownstreams() []Block
 	getForEach() *ForEach
 	markExpanded()
