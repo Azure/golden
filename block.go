@@ -51,8 +51,14 @@ var metaNestedBlockNames = hashset.New("precondition")
 func Decode(b Block) error {
 	hb := b.HclBlock()
 	evalContext := b.EvalContext()
-	if decodeBase, ok := b.(CustomDecodeBase); ok {
-		return decodeBase.Decode(hb, evalContext)
+	if customDecode, ok := b.(CustomDecode); ok {
+		return customDecode.Decode(hb, evalContext)
+	}
+	if baseDecode, ok := b.(BaseDecode); ok {
+		err := baseDecode.BaseDecode(hb, evalContext)
+		if err != nil {
+			return err
+		}
 	}
 	diag := gohcl.DecodeBody(cleanBodyForDecode(hb), evalContext, b)
 	if diag.HasErrors() {
