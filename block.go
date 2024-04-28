@@ -46,11 +46,14 @@ func BlockToString(f Block) string {
 	return string(marshal)
 }
 
-var metaAttributeNames = hashset.New("for_each", "rule_ids")
-var metaNestedBlockNames = hashset.New("precondition", "dynamic")
+var MetaAttributeNames = hashset.New("for_each", "rule_ids", "depends_on")
+var MetaNestedBlockNames = hashset.New("precondition", "dynamic")
 
 func Decode(b Block) error {
 	hb := b.HclBlock()
+	if err := verifyDependsOn(b); err != nil {
+		return err
+	}
 	evalContext := b.EvalContext()
 	if customDecode, ok := b.(CustomDecode); ok {
 		return customDecode.Decode(hb, evalContext)
@@ -71,6 +74,24 @@ func Decode(b Block) error {
 	}
 	// we need set defaults again, since gohcl.DecodeBody might erase default value set on those attribute has null values.
 	defaults.SetDefaults(b)
+	return nil
+}
+
+func verifyDependsOn(b Block) error {
+	dependsOn, ok := b.HclBlock().Attributes()["depends_on"]
+	if !ok {
+		return nil
+	}
+	exprString := strings.TrimSpace(dependsOn.ExprString())
+	if !strings.HasPrefix(exprString, "[") && !strings.HasSuffix(exprString, "]") {
+		return fmt.Errorf("`depends_on` must be a list of block address")
+	}
+	elements := strings.Split(strings.TrimSuffix(strings.TrimPrefix(exprString, "["), "]"), ",")
+	for _, element := range elements {
+		if !b.Config().ValidBlockAddress(element) {
+			return fmt.Errorf("`depends_on` must be a list of block address, invalid address: %s", element)
+		}
+	}
 	return nil
 }
 
@@ -168,14 +189,14 @@ func cleanBodyForDecode(hb *hclsyntax.Body) *hclsyntax.Body {
 
 	// Iterate over the attributes of the original body
 	for attrName, attr := range hb.Attributes {
-		if metaAttributeNames.Contains(attrName) {
+		if MetaAttributeNames.Contains(attrName) {
 			continue
 		}
 		newBody.Attributes[attrName] = attr
 	}
 
 	for _, nb := range hb.Blocks {
-		if metaNestedBlockNames.Contains(nb.Type) {
+		if MetaNestedBlockNames.Contains(nb.Type) {
 			continue
 		}
 		newBody.Blocks = append(newBody.Blocks, nb)

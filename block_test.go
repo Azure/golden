@@ -101,6 +101,72 @@ func (d *DummyResource) Apply() error {
 	return nil
 }
 
+func Test_DependsOn(t *testing.T) {
+	code := `data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = [data.dummy.this]
+}`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	_, err = RunDummyPlan(config)
+	require.NoError(t, err)
+	children, err := config.GetChildren("data.dummy.this")
+	require.NoError(t, err)
+	_, ok := children["resource.dummy.this"]
+	assert.True(t, ok)
+}
+
+func Test_DependsOnMustBeListOfBlockAddress(t *testing.T) {
+	cases := []struct {
+		desc string
+		code string
+	}{
+		{
+			desc: "not a list",
+			code: `data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = data.dummy.this
+}`,
+		},
+		{
+			desc: "list element is not block address",
+			code: `data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = ["hello"]
+}`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			mockFs := afero.NewMemMapFs()
+			stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+				return mockFs
+			})
+			defer stub.Reset()
+			_ = afero.WriteFile(mockFs, "test.hcl", []byte(c.code), 0644)
+
+			config, err := BuildDummyConfig("", "", nil)
+			require.NoError(t, err)
+			_, err = RunDummyPlan(config)
+			assert.NotNil(t, err)
+		})
+	}
+}
+
 func Test_NestedBlock(t *testing.T) {
 	code := `data "dummy" this {
 	top_nested_block {

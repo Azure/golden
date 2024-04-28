@@ -9,9 +9,10 @@ import (
 )
 
 type BaseConfig struct {
-	ctx     context.Context
-	basedir string
-	d       *Dag
+	ctx               context.Context
+	basedir           string
+	d                 *Dag
+	rawBlockAddresses map[string]struct{}
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -48,9 +49,10 @@ func NewBasicConfig(basedir string, ctx context.Context) *BaseConfig {
 		ctx = context.Background()
 	}
 	c := &BaseConfig{
-		basedir: basedir,
-		ctx:     ctx,
-		d:       newDag(),
+		basedir:           basedir,
+		ctx:               ctx,
+		d:                 newDag(),
+		rawBlockAddresses: make(map[string]struct{}),
 	}
 	return c
 }
@@ -75,7 +77,20 @@ func (c *BaseConfig) GetChildren(id string) (map[string]interface{}, error) {
 	return c.d.GetChildren(id)
 }
 
+func (c *BaseConfig) ValidBlockAddress(address string) bool {
+	if v, err := c.d.GetVertex(address); v != nil && err == nil {
+		return true
+	}
+	if _, ok := c.rawBlockAddresses[address]; ok {
+		return true
+	}
+	return false
+}
+
 func (c *BaseConfig) buildDag(blocks []Block) error {
+	for _, b := range blocks {
+		c.rawBlockAddresses[b.Address()] = struct{}{}
+	}
 	return c.d.buildDag(blocks)
 }
 

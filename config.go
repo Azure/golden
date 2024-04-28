@@ -21,6 +21,7 @@ type Config interface {
 	EvalContext() *hcl.EvalContext
 	RunPrePlan() error
 	RunPlan() error
+	ValidBlockAddress(address string) bool
 	expandBlock(b Block) ([]Block, error)
 }
 
