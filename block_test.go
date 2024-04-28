@@ -1,8 +1,12 @@
 package golden
 
 import (
+	"github.com/ahmetb/go-linq/v3"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/prashantv/gostub"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 	"math/big"
 	"testing"
@@ -51,11 +55,22 @@ func (rb *BaseResource) CanExecutePrePlan() bool {
 
 var _ TestData = &DummyData{}
 
+type TopNestedBlock struct {
+	Name               string              `hcl:"name"`
+	SecondNestedBlocks []SecondNestedBlock `hcl:"second_nested_block,block"`
+}
+
+type SecondNestedBlock struct {
+	Id   int    `hcl:"id"`
+	Name string `hcl:"name"`
+}
+
 type DummyData struct {
 	*BaseData
 	*BaseBlock
 	Tags                      map[string]string `json:"data" hcl:"data,optional"`
 	AttributeWithDefaultValue string            `json:"attribute" hcl:"attribute,optional" default:"default_value"`
+	TopNestedBlocks           []TopNestedBlock  `json:"top_nested_block" hcl:"top_nested_block,block"`
 }
 
 func (d *DummyData) Type() string {
@@ -84,6 +99,184 @@ func (d *DummyResource) ExecuteDuringPlan() error {
 
 func (d *DummyResource) Apply() error {
 	return nil
+}
+
+func Test_NestedBlock(t *testing.T) {
+	code := `data "dummy" this {
+	top_nested_block {
+	  name = "name"
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 1)
+	assert.Equal(t, "name", dataBlock.TopNestedBlocks[0].Name)
+}
+
+func Test_NestedBlock_Dynamic(t *testing.T) {
+	code := `data "dummy" this {
+	dynamic "top_nested_block" {
+      for_each = toset([1])
+	  content {
+        name = "name"
+	  }
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 1)
+	assert.Equal(t, "name", dataBlock.TopNestedBlocks[0].Name)
+}
+
+func Test_NestedBlock_DynamicUseForEach(t *testing.T) {
+	code := `data "dummy" this {
+	dynamic "top_nested_block" {
+      for_each = toset(["hello"])
+	  content {
+        name = top_nested_block.value
+	  }
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 1)
+	assert.Equal(t, "hello", dataBlock.TopNestedBlocks[0].Name)
+}
+
+func Test_NestedBlock_DynamicAndNonDynamic(t *testing.T) {
+	code := `data "dummy" this {
+	top_nested_block {
+	  name = "hello"
+    }
+	dynamic "top_nested_block" {
+      for_each = toset(["world"])
+	  content {
+        name = top_nested_block.value
+	  }
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 2)
+	assert.Equal(t, "hello", dataBlock.TopNestedBlocks[0].Name)
+	assert.Equal(t, "world", dataBlock.TopNestedBlocks[1].Name)
+}
+
+func Test_NestedBlock_DynamicWithMultipleElementes(t *testing.T) {
+	code := `data "dummy" this {
+	dynamic "top_nested_block" {
+      for_each = toset(["hello", "world"])
+	  content {
+        name = top_nested_block.value
+	  }
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 2)
+	assert.True(t, linq.From(dataBlock.TopNestedBlocks).AnyWith(func(i interface{}) bool {
+		return i.(TopNestedBlock).Name == "hello"
+	}))
+	assert.True(t, linq.From(dataBlock.TopNestedBlocks).AnyWith(func(i interface{}) bool {
+		return i.(TopNestedBlock).Name == "world"
+	}))
+}
+
+func Test_NestedBlock_DynamicInsideDynamic(t *testing.T) {
+	code := `data "dummy" this {
+	dynamic "top_nested_block" {
+      for_each = toset(["hello"])
+	  content {
+        name = top_nested_block.value
+		dynamic "second_nested_block" {
+		  for_each = toset([1])
+		  content {
+			id = second_nested_block.value
+			name = top_nested_block.value
+		  }
+		}
+	  }
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 1)
+	assert.Len(t, dataBlock.TopNestedBlocks[0].SecondNestedBlocks, 1)
+	secondNesteBlock := dataBlock.TopNestedBlocks[0].SecondNestedBlocks[0]
+	assert.Equal(t, "hello", secondNesteBlock.Name)
+	assert.Equal(t, 1, secondNesteBlock.Id)
 }
 
 func Test_LocalBlocksValueShouldBeAFlattenObject(t *testing.T) {
