@@ -54,6 +54,7 @@ func Decode(b Block) error {
 	if err := verifyDependsOn(b); err != nil {
 		return err
 	}
+	zeroBlock(b)
 	evalContext := b.EvalContext()
 	if customDecode, ok := b.(CustomDecode); ok {
 		return customDecode.Decode(hb, evalContext)
@@ -75,6 +76,24 @@ func Decode(b Block) error {
 	// we need set defaults again, since gohcl.DecodeBody might erase default value set on those attribute has null values.
 	defaults.SetDefaults(b)
 	return nil
+}
+
+func zeroBlock(b Block) {
+	nb, _ := wrapBlock(b.Config(), b.HclBlock())
+	v := reflect.ValueOf(b).Elem()
+	vnb := reflect.ValueOf(nb).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldNb := vnb.Field(i)
+		if !field.CanSet() {
+			continue
+		}
+
+		tag := v.Type().Field(i).Tag
+		if _, ok := tag.Lookup("hcl"); ok || strings.Contains(string(tag), "attribute") {
+			field.Set(fieldNb)
+		}
+	}
 }
 
 func verifyDependsOn(b Block) error {
