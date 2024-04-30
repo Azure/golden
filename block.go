@@ -46,7 +46,7 @@ func BlockToString(f Block) string {
 	return string(marshal)
 }
 
-var MetaAttributeNames = hashset.New("for_each", "rule_ids", "depends_on")
+var MetaAttributeNames = hashset.New("for_each", "depends_on")
 var MetaNestedBlockNames = hashset.New("precondition", "dynamic")
 
 func Decode(b Block) error {

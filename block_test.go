@@ -245,6 +245,35 @@ func Test_NestedBlock_DynamicUseForEach(t *testing.T) {
 	assert.Equal(t, "hello", dataBlock.TopNestedBlocks[0].Name)
 }
 
+func Test_NestedBlock_DynamicMultipleDecode(t *testing.T) {
+	code := `data "dummy" this {
+	dynamic "top_nested_block" {
+      for_each = toset(["hello"])
+	  content {
+        name = top_nested_block.value
+	  }
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 1)
+	assert.Equal(t, "hello", dataBlock.TopNestedBlocks[0].Name)
+}
+
 func Test_NestedBlock_DynamicAndNonDynamic(t *testing.T) {
 	code := `data "dummy" this {
 	top_nested_block {
