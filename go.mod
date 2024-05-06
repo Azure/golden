@@ -16,7 +16,7 @@ require (
 	github.com/spf13/afero v1.11.0
 	github.com/stretchr/testify v1.9.0
 	github.com/zclconf/go-cty v1.14.4
-	golang.org/x/text v0.14.0
+	golang.org/x/text v0.15.0
 )
 
 require (
