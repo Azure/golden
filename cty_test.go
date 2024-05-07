@@ -261,6 +261,16 @@ func TestCtyValueToString(t *testing.T) {
 			}),
 			want: "{key: value, key1: 1}",
 		},
+		{
+			name: "null string",
+			val:  cty.NullVal(cty.String),
+			want: "null",
+		},
+		{
+			name: "null map",
+			val:  cty.NullVal(cty.Map(cty.String)),
+			want: "null",
+		},
 	}
 
 	for _, tt := range tests {

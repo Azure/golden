@@ -98,6 +98,9 @@ func Int(i int) *int {
 }
 
 func CtyValueToString(val cty.Value) string {
+	if val.IsNull() && val != cty.NilVal {
+		return "null"
+	}
 	switch val.Type() {
 	case cty.String:
 		return val.AsString()
