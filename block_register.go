@@ -57,8 +57,9 @@ func IsBlockTypeWanted(bt string) bool {
 	return validBlockTypes.Contains(bt)
 }
 
-func registerLocal() {
+func registerCommonBlock() {
 	RegisterBlock(new(LocalBlock))
+	RegisterBlock(new(VariableBlock))
 }
 
 var factories = map[string]blockRegistry{}

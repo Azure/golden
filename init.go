@@ -1,6 +1,6 @@
 package golden
 
 func init() {
-	registerLocal()
+	registerCommonBlock()
 	registerValidator()
 }

@@ -63,30 +63,48 @@ func AsHclBlocks(syntaxBlocks hclsyntax.Blocks, writeBlocks []*hclwrite.Block) [
 }
 
 func readRawHclSyntaxBlock(b *hclsyntax.Block) []*hclsyntax.Block {
-	if b.Type != "locals" {
+	switch b.Type {
+	case "locals":
+		{
+			var newBlocks []*hclsyntax.Block
+			for _, attr := range b.Body.Attributes {
+				newBlocks = append(newBlocks, &hclsyntax.Block{
+					Type:   "local",
+					Labels: []string{"", attr.Name},
+					Body: &hclsyntax.Body{
+						Attributes: map[string]*hclsyntax.Attribute{
+							"value": {
+								Name:        "value",
+								Expr:        attr.Expr,
+								SrcRange:    attr.SrcRange,
+								NameRange:   attr.NameRange,
+								EqualsRange: attr.EqualsRange,
+							},
+						},
+						SrcRange: attr.NameRange,
+						EndRange: attr.SrcRange,
+					},
+				})
+			}
+			return newBlocks
+		}
+	case "variable":
+		{
+			return []*hclsyntax.Block{
+				{
+					Type:            "variable",
+					Labels:          append([]string{""}, b.Labels...),
+					Body:            b.Body,
+					TypeRange:       b.TypeRange,
+					LabelRanges:     b.LabelRanges,
+					OpenBraceRange:  b.OpenBraceRange,
+					CloseBraceRange: b.CloseBraceRange,
+				},
+			}
+		}
+	default:
 		return []*hclsyntax.Block{b}
 	}
-	var newBlocks []*hclsyntax.Block
-	for _, attr := range b.Body.Attributes {
-		newBlocks = append(newBlocks, &hclsyntax.Block{
-			Type:   "local",
-			Labels: []string{"", attr.Name},
-			Body: &hclsyntax.Body{
-				Attributes: map[string]*hclsyntax.Attribute{
-					"value": {
-						Name:        "value",
-						Expr:        attr.Expr,
-						SrcRange:    attr.SrcRange,
-						NameRange:   attr.NameRange,
-						EqualsRange: attr.EqualsRange,
-					},
-				},
-				SrcRange: attr.NameRange,
-				EndRange: attr.SrcRange,
-			},
-		})
-	}
-	return newBlocks
 }
 
 func readRawHclWriteBlock(b *hclwrite.Block) []*hclwrite.Block {
