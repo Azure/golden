@@ -1,8 +1,10 @@
 package golden
 
 import (
+	"fmt"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/prashantv/gostub"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
@@ -59,4 +61,51 @@ func (s *variableSuite) TestVariableBlockWithTypeShouldParseVariableType() {
 	err := sut.ParseVariableType()
 	s.NoError(err)
 	s.Equal(cty.String, *sut.VariableType)
+}
+
+func (s *variableSuite) TestReadValueFromEnv() {
+	cases := []struct {
+		desc        string
+		valueString string
+		expected    cty.Value
+	}{
+		{
+			desc:        "string value",
+			valueString: `"hello"`,
+			expected:    cty.StringVal("hello"),
+		},
+		{
+			desc:        "bool",
+			valueString: "true",
+			expected:    cty.True,
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			stub := gostub.Stub(&DslAbbreviation, "TEST")
+			defer stub.Reset()
+			s.T().Setenv(fmt.Sprintf("TEST_VAR_test"), c.valueString)
+			sut := &VariableBlock{
+				BaseBlock: &BaseBlock{},
+			}
+			sut.name = "test"
+			actual, err := sut.ReadValueFromEnv()
+			s.NoError(err)
+			s.Equal(c.expected, *actual)
+		})
+	}
+}
+
+func (s *variableSuite) TestReadValueFromEnv_EmptyEnvShouldReturnNilCtyValue() {
+	sut := &VariableBlock{
+		BaseBlock: &BaseBlock{},
+	}
+	sut.name = "test"
+	actual, err := sut.ReadValueFromEnv()
+	s.NoError(err)
+	s.Nil(actual)
+}
+
+func p[T any](input T) *T {
+	return &input
 }

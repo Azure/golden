@@ -2,7 +2,9 @@ package golden
 
 import (
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"os"
 )
@@ -71,10 +73,18 @@ func (v *VariableBlock) ParseVariableType() error {
 	return nil
 }
 
-func (v *VariableBlock) ReadValueFromEnv() *cty.Value {
+func (v *VariableBlock) ReadValueFromEnv() (*cty.Value, error) {
 	env := os.Getenv(fmt.Sprintf("%s_VAR_%s", DslAbbreviation, v.name))
 	if env == "" {
-		return nil
+		return nil, nil
 	}
-	panic("implement me")
+	exp, diag := hclsyntax.ParseExpression([]byte(env), "", hcl.InitialPos)
+	if diag.HasErrors() {
+		return nil, diag
+	}
+	value, diag := exp.Value(nil)
+	if diag.HasErrors() {
+		return nil, diag
+	}
+	return &value, nil
 }
