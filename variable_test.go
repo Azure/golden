@@ -71,7 +71,7 @@ func (s *variableSuite) TestReadValueFromEnv() {
 	}{
 		{
 			desc:        "string value",
-			valueString: `"hello"`,
+			valueString: `hello`,
 			expected:    cty.StringVal("hello"),
 		},
 		{

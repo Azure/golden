@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"os"
+	"strings"
 )
 
 var DslFullName string
@@ -78,13 +79,19 @@ func (v *VariableBlock) ReadValueFromEnv() (*cty.Value, error) {
 	if env == "" {
 		return nil, nil
 	}
-	exp, diag := hclsyntax.ParseExpression([]byte(env), "", hcl.InitialPos)
-	if diag.HasErrors() {
-		return nil, diag
+	for {
+		exp, diag := hclsyntax.ParseExpression([]byte(env), "", hcl.InitialPos)
+		if diag.HasErrors() {
+			return nil, diag
+		}
+		value, diag := exp.Value(nil)
+		if diag.HasErrors() {
+			if strings.Contains(diag.Error(), "Variables not allowed") {
+				env = fmt.Sprintf(`"%s"`, env)
+				continue
+			}
+			return nil, diag
+		}
+		return &value, nil
 	}
-	value, diag := exp.Value(nil)
-	if diag.HasErrors() {
-		return nil, diag
-	}
-	return &value, nil
 }
