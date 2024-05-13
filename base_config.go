@@ -3,6 +3,8 @@ package golden
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/lonegunmanb/hclfuncs"
 	"github.com/spf13/afero"
@@ -86,6 +88,42 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 		return true
 	}
 	return false
+}
+
+func (c *BaseConfig) ReadVariablesFromVarFiles() (map[string]VariableValueRead, error) {
+	hclVarFilePath := filepath.Join(c.basedir, fmt.Sprintf("%s.%svars", c.dslFullName, c.dslAbbreviation))
+	jsonVarFilePath := fmt.Sprintf("%s.json", hclVarFilePath)
+	hclVars, err := c.ReadVariablesFromVarFile(hclVarFilePath)
+	if err != nil {
+		return nil, err
+	}
+	jsonVars, err := c.ReadVariablesFromVarFile(jsonVarFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return merge(hclVars, jsonVars), nil
+}
+
+func (c *BaseConfig) ReadVariablesFromVarFile(fileName string) (map[string]VariableValueRead, error) {
+	var m map[string]VariableValueRead
+	exist, err := afero.Exists(configFs, fileName)
+	if err != nil {
+		return nil, fmt.Errorf("cannot check existance of %s: %+v", fileName, err)
+	}
+	if !exist {
+		return nil, nil
+	}
+	content, err := afero.ReadFile(configFs, fileName)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open %s: %+v", fileName, err)
+	}
+
+	m, err = c.ReadVariablesFromSingleVarFile(content, fileName)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %s: %+v", fileName, err)
+	}
+	return m, nil
 }
 
 func (c *BaseConfig) ReadVariablesFromSingleVarFile(fileContent []byte, fileName string) (map[string]VariableValueRead, error) {
@@ -184,4 +222,14 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	}
 	b.markExpanded()
 	return expandedBlocks, c.d.DeleteVertex(address)
+}
+
+func merge[TK, TV comparable](maps ...map[TK]TV) map[TK]TV {
+	r := make(map[TK]TV)
+	for _, m := range maps {
+		for k, v := range m {
+			r[k] = v
+		}
+	}
+	return r
 }

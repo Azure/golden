@@ -20,8 +20,16 @@ func (s *baseConfigSuite) SetupTest() {
 	s.testBase = newTestBase()
 }
 
+func (s *baseConfigSuite) SetupSubTest() {
+	s.SetupTest()
+}
+
 func (s *baseConfigSuite) TearDownTest() {
 	s.teardown()
+}
+
+func (s *baseConfigSuite) TearDownSubTest() {
+	s.TearDownTest()
 }
 
 func (s *baseConfigSuite) TestReadVarsFromVarFile() {
@@ -89,6 +97,95 @@ obj_value = {
 				s.Equal(*expectedValue.Value, *varRead.Value)
 				s.Equal(expectedValue.Error, varRead.Error)
 			}
+		})
+	}
+}
+
+func (s *baseConfigSuite) TestBaseConfig_ReadVariablesFromVarFiles() {
+	cases := []struct {
+		desc   string
+		files  map[string]string
+		assert func(map[string]VariableValueRead)
+	}{
+		{
+			desc: "json vars merge with hcl vars",
+			files: map[string]string{
+				"/test.ftvars": `
+string_value = "hello"
+bool_value = true
+obj_value = {
+  name = "John Doe"
+  gender = "Male"
+}`,
+				"/test.ftvars.json": `{
+    "bool_value": true,
+	"obj_value": {
+		"name": "John Doe",
+		"gender": "Male"
+    }
+}`,
+			},
+			assert: func(vars map[string]VariableValueRead) {
+				// Assert the variables were read correctly
+				s.Len(vars, 3)
+				s.Equal("hello", vars["string_value"].Value.AsString())
+				s.True(vars["bool_value"].Value.True())
+				s.Equal("John Doe", vars["obj_value"].Value.GetAttr("name").AsString())
+				s.Equal("Male", vars["obj_value"].Value.GetAttr("gender").AsString())
+			},
+		},
+		{
+			desc: "json vars should take precedence ",
+			files: map[string]string{
+				"/test.ftvars": `
+string_value = "hello"
+`,
+				"/test.ftvars.json": `{
+    "string_value": "world"
+}`,
+			},
+			assert: func(vars map[string]VariableValueRead) {
+				// Assert the variables were read correctly
+				s.Len(vars, 1)
+				s.Equal("world", vars["string_value"].Value.AsString())
+			},
+		},
+		{
+			desc: "hcl config only",
+			files: map[string]string{
+				"/test.ftvars": `
+string_value = "hello"
+`,
+			},
+			assert: func(vars map[string]VariableValueRead) {
+				// Assert the variables were read correctly
+				s.Len(vars, 1)
+				s.Equal("hello", vars["string_value"].Value.AsString())
+			},
+		},
+		{
+			desc: "json config only",
+			files: map[string]string{
+				"/test.ftvars.json": `{
+    "string_value": "world"
+}`,
+			},
+			assert: func(vars map[string]VariableValueRead) {
+				// Assert the variables were read correctly
+				s.Len(vars, 1)
+				s.Equal("world", vars["string_value"].Value.AsString())
+			},
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(c.files)
+			// Create a new BaseConfig
+			sut := NewBasicConfig("/", "test", "ft", nil)
+			vars, err := sut.ReadVariablesFromVarFiles()
+			// Assert no error occurred
+			require.NoError(s.T(), err)
+			c.assert(vars)
 		})
 	}
 }
