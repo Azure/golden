@@ -1,10 +1,10 @@
 package golden
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/prashantv/gostub"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
@@ -82,11 +82,13 @@ func (s *variableSuite) TestReadValueFromEnv() {
 	}
 	for _, c := range cases {
 		s.Run(c.desc, func() {
-			stub := gostub.Stub(&DslAbbreviation, "TEST")
-			defer stub.Reset()
-			s.T().Setenv(fmt.Sprintf("TEST_VAR_test"), c.valueString)
+			s.T().Setenv(fmt.Sprintf("FT_VAR_test"), c.valueString)
+			config, err := NewDummyConfig(".", context.TODO(), nil)
+			require.NoError(s.T(), err)
 			sut := &VariableBlock{
-				BaseBlock: &BaseBlock{},
+				BaseBlock: &BaseBlock{
+					c: config,
+				},
 			}
 			sut.name = "test"
 			actual, err := sut.ReadValueFromEnv()

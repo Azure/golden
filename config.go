@@ -22,6 +22,8 @@ type Config interface {
 	RunPrePlan() error
 	RunPlan() error
 	ValidBlockAddress(address string) bool
+	DslFullName() string
+	DslAbbreviation() string
 	expandBlock(b Block) ([]Block, error)
 }
 

@@ -10,9 +10,6 @@ import (
 	"strings"
 )
 
-var DslFullName string
-var DslAbbreviation string
-
 var _ Variable = &VariableBlock{}
 var _ PrePlanBlock = &VariableBlock{}
 var _ PlanBlock = &VariableBlock{}
@@ -75,7 +72,7 @@ func (v *VariableBlock) ParseVariableType() error {
 }
 
 func (v *VariableBlock) ReadValueFromEnv() (*cty.Value, error) {
-	env := os.Getenv(fmt.Sprintf("%s_VAR_%s", DslAbbreviation, v.name))
+	env := os.Getenv(fmt.Sprintf("%s_VAR_%s", strings.ToUpper(v.c.DslAbbreviation()), v.name))
 	if env == "" {
 		return nil, nil
 	}
