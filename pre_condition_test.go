@@ -34,7 +34,9 @@ func (s *preConditionSuite) TestPreCondition_PassedHardcodedCondition() {
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
@@ -57,7 +59,9 @@ func (s *preConditionSuite) TestPreCondition_FailedHardcodedConditionShouldFaile
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
@@ -74,7 +78,9 @@ func (s *preConditionSuite) TestPreCondition_FailedHardcodedCondition() {
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
@@ -100,7 +106,9 @@ func (s *preConditionSuite) TestPreCondition_FunctionCallInCondition() {
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
@@ -121,7 +129,9 @@ func (s *preConditionSuite) TestMultiplePreConditions_containFailedCheck() {
             }
         }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
@@ -141,7 +151,9 @@ func (s *preConditionSuite) TestMultiplePreConditions_allPassedCheck() {
             }
         }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
@@ -168,7 +180,9 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttribute() {
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{sampleConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": sampleConfig,
+	})
 
 	// Parse the config
 	config, err := BuildDummyConfig("", "", nil)
@@ -199,7 +213,9 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttributeFailedCheck
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{sampleConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": sampleConfig,
+	})
 
 	// Parse the config
 	config, err := BuildDummyConfig("", "", nil)
@@ -232,7 +248,9 @@ func (s *preConditionSuite) TestPreCondition_ReferMultipleBlockAttributes() {
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{sampleConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": sampleConfig,
+	})
 
 	// Parse the config
 	config, err := BuildDummyConfig("", "", nil)
@@ -266,7 +284,9 @@ func (s *preConditionSuite) TestPreCondition_ReferMultipleBlockAttributesFailedC
         }
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{sampleConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": sampleConfig,
+	})
 
 	// Parse the config
 	config, err := BuildDummyConfig("", "", nil)
@@ -298,7 +318,9 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttributeWithForEach
             }
         }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{sampleConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": sampleConfig,
+	})
 
 	// Parse the config
 	config, err := BuildDummyConfig("", "", nil)
@@ -330,7 +352,9 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttributeWithForEach
             }
         }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{sampleConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": sampleConfig,
+	})
 
 	// Parse the config
 	config, err := BuildDummyConfig("", "", nil)

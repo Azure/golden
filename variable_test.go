@@ -139,8 +139,12 @@ func (s *variableSuite) TestReadDefaultValue() {
 }
 
 func (s *variableSuite) TestReadValueFromEnv_EmptyEnvShouldReturnNilCtyValue() {
+	config, err := NewDummyConfig(".", context.TODO(), nil)
+	require.NoError(s.T(), err)
 	sut := &VariableBlock{
-		BaseBlock: &BaseBlock{},
+		BaseBlock: &BaseBlock{
+			c: config,
+		},
 	}
 	sut.name = "test"
 	read := sut.ReadValueFromEnv()
