@@ -94,9 +94,14 @@ func (v *VariableBlock) ReadDefaultValue() VariableValueRead {
 		return NoValue
 	}
 	value, diag := defaultAttr.Expr.Value(nil)
+	if diag.HasErrors() {
+		return VariableValueRead{
+			Error: diag,
+		}
+	}
 	return VariableValueRead{
 		Value: &value,
-		Error: diag,
+		Error: nil,
 	}
 }
 
