@@ -40,7 +40,9 @@ func (s *dagSuite) TestDag_DagVertex() {
 	resource "dummy" bar {}  
 	`
 
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
@@ -70,7 +72,9 @@ func (s *dagSuite) TestDag_DagBlocksShouldBeConnectedWithEdgeIfThereIsReferenceB
 	}
 	`
 
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 
 	config, err := BuildDummyConfig("", "", nil)
 	require.NoError(t, err)
@@ -96,7 +100,9 @@ func (s *dagSuite) TestDag_CycleDependencyShouldCauseError() {
     }
 	`
 
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 
 	_, err := BuildDummyConfig("", "", nil)
 	s.NotNil(err)

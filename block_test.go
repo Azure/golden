@@ -1,15 +1,17 @@
 package golden
 
 import (
+	"math/big"
+	"testing"
+	
 	"github.com/ahmetb/go-linq/v3"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/prashantv/gostub"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
-	"math/big"
-	"testing"
 )
 
 type TestData interface {
@@ -101,20 +103,34 @@ func (d *DummyResource) Apply() error {
 	return nil
 }
 
-func Test_DependsOn(t *testing.T) {
+type blockTestSuite struct {
+	suite.Suite
+	*testBase
+}
+
+func TestBlockSuite(t *testing.T) {
+	suite.Run(t, new(blockTestSuite))
+}
+
+func (s *blockTestSuite) SetupTest() {
+	s.testBase = newTestBase()
+}
+
+func (s *blockTestSuite) TearDownTest() {
+	s.teardown()
+}
+
+func (s *blockTestSuite) Test_DependsOn() {
 	code := `data "dummy" this {
 }
 
   resource "dummy" this {
   depends_on = [data.dummy.this]
 }`
-	mockFs := afero.NewMemMapFs()
-	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
-		return mockFs
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": code,
 	})
-	defer stub.Reset()
-	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
-
+	t := s.T()
 	config, err := BuildDummyConfig("", "", nil)
 	require.NoError(t, err)
 	_, err = RunDummyPlan(config)
@@ -122,10 +138,10 @@ func Test_DependsOn(t *testing.T) {
 	children, err := config.GetChildren("data.dummy.this")
 	require.NoError(t, err)
 	_, ok := children["resource.dummy.this"]
-	assert.True(t, ok)
+	s.True(ok)
 }
 
-func Test_DependsOnMustBeListOfBlockAddress(t *testing.T) {
+func (s *blockTestSuite) Test_DependsOnMustBeListOfBlockAddress() {
 	cases := []struct {
 		desc string
 		code string
@@ -151,18 +167,15 @@ func Test_DependsOnMustBeListOfBlockAddress(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		t.Run(c.desc, func(t *testing.T) {
-			mockFs := afero.NewMemMapFs()
-			stub := gostub.Stub(&testFsFactory, func() afero.Fs {
-				return mockFs
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.code,
 			})
-			defer stub.Reset()
-			_ = afero.WriteFile(mockFs, "test.hcl", []byte(c.code), 0644)
 
 			config, err := BuildDummyConfig("", "", nil)
-			require.NoError(t, err)
+			require.NoError(s.T(), err)
 			_, err = RunDummyPlan(config)
-			assert.NotNil(t, err)
+			s.NotNil(err)
 		})
 	}
 }

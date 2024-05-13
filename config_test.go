@@ -140,7 +140,9 @@ func (s *configSuite) TestParseConfig() {
 	}
 	`
 
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{content})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
 	t := s.T()
 
 	config, err := BuildDummyConfig("", "", nil)
@@ -172,7 +174,9 @@ func (s *configSuite) TestUnregisteredBlock() {
 	`
 
 	t := s.T()
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{hcl})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": hcl,
+	})
 	_, err := BuildDummyConfig("", "", nil)
 	require.NotNil(t, err)
 	expectedError := "unregistered data: unregistered_data"
@@ -189,7 +193,9 @@ func (s *configSuite) TestInvalidBlockType() {
 	`
 
 	t := s.T()
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{hcl})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": hcl,
+	})
 	_, err := BuildDummyConfig("", "", nil)
 	require.NotNil(t, err)
 
@@ -206,7 +212,9 @@ func (s *configSuite) TestFunctionInEvalContext() {
 		}
 	}
 	`
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{configStr})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": configStr,
+	})
 
 	config, err := BuildDummyConfig("/", ".", nil)
 	require.NoError(t, err)
@@ -226,7 +234,9 @@ locals {
   b = 1
 }
 `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{code})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": code,
+	})
 	c, err := BuildDummyConfig("/", "", nil)
 	s.NoError(err)
 	locals := Blocks[Local](c)
@@ -243,7 +253,9 @@ func (s *configSuite) TestForEach_ForEachBlockShouldBeExpanded() {
 		for_each = local.items
 	}
 `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{hclConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": hclConfig,
+	})
 
 	config, err := BuildDummyConfig("", "", nil)
 	s.NoError(err)
@@ -263,7 +275,9 @@ func (s *configSuite) TestForEachAndAddressIndex() {
 		}
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{hclConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": hclConfig,
+	})
 
 	config, err := BuildDummyConfig("", "", nil)
 	require.NoError(s.T(), err)
@@ -292,7 +306,9 @@ func (s *configSuite) TestForEach_forEachAsToggle() {
         for_each = false ? locals.items : []
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{hclConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": hclConfig,
+	})
 
 	config, err := BuildDummyConfig("", "", nil)
 	require.NoError(s.T(), err)
@@ -309,7 +325,9 @@ func (s *configSuite) TestForEach_blocksWithIndexShouldHasNewBlockId() {
         for_each = local.items
     }
     `
-	s.dummyFsWithFiles([]string{"test.hcl"}, []string{hclConfig})
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": hclConfig,
+	})
 
 	config, err := BuildDummyConfig("", "", nil)
 	require.NoError(s.T(), err)

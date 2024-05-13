@@ -27,8 +27,9 @@ func (t *testBase) teardown() {
 	t.stub.Reset()
 }
 
-func (t *testBase) dummyFsWithFiles(fileNames []string, contents []string) {
-	for i := range fileNames {
-		_ = afero.WriteFile(t.fs, fileNames[i], []byte(contents[i]), 0644)
+func (t *testBase) dummyFsWithFiles(files map[string]string) {
+	for name, content := range files {
+		n := name
+		_ = afero.WriteFile(t.fs, n, []byte(content), 0644)
 	}
 }
