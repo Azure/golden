@@ -13,20 +13,16 @@ type BaseConfig struct {
 	basedir           string
 	d                 *Dag
 	rawBlockAddresses map[string]struct{}
+	dslFullName       string
+	dslAbbreviation   string
 }
 
 func (c *BaseConfig) Context() context.Context {
 	return c.ctx
 }
 
-func (c *BaseConfig) blocksByTypes() map[string][]Block {
-	r := make(map[string][]Block)
-	for _, b := range blocks(c) {
-		bt := b.BlockType()
-		r[bt] = append(r[bt], b)
-	}
-	return r
-}
+func (c *BaseConfig) DslFullName() string     { return c.dslFullName }
+func (c *BaseConfig) DslAbbreviation() string { return c.dslAbbreviation }
 
 func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	ctx := hcl.EvalContext{
@@ -44,7 +40,7 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	return &ctx
 }
 
-func NewBasicConfig(basedir string, ctx context.Context) *BaseConfig {
+func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, ctx context.Context) *BaseConfig {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -52,6 +48,8 @@ func NewBasicConfig(basedir string, ctx context.Context) *BaseConfig {
 		basedir:           basedir,
 		ctx:               ctx,
 		d:                 newDag(),
+		dslAbbreviation:   dslAbbreviation,
+		dslFullName:       dslFullName,
 		rawBlockAddresses: make(map[string]struct{}),
 	}
 	return c
@@ -85,6 +83,15 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 		return true
 	}
 	return false
+}
+
+func (c *BaseConfig) blocksByTypes() map[string][]Block {
+	r := make(map[string][]Block)
+	for _, b := range blocks(c) {
+		bt := b.BlockType()
+		r[bt] = append(r[bt], b)
+	}
+	return r
 }
 
 func (c *BaseConfig) buildDag(blocks []Block) error {

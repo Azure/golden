@@ -25,7 +25,7 @@ type DummyConfig struct {
 
 func NewDummyConfig(baseDir string, ctx context.Context, hclBlocks []*HclBlock) (Config, error) {
 	cfg := &DummyConfig{
-		BaseConfig: NewBasicConfig(baseDir, ctx),
+		BaseConfig: NewBasicConfig(baseDir, "faketerraform", "ft", ctx),
 	}
 	return cfg, InitConfig(cfg, hclBlocks)
 }
