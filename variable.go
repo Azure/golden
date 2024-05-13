@@ -32,6 +32,7 @@ type Variable interface {
 
 type VariableBlock struct {
 	*BaseBlock
+	Description   *string `hcl:"description"`
 	VariableType  *cty.Type
 	VariableValue cty.Value
 }
@@ -85,6 +86,18 @@ func (v *VariableBlock) ParseVariableType() error {
 func (v *VariableBlock) ReadValueFromEnv() VariableValueRead {
 	env := os.Getenv(fmt.Sprintf("%s_VAR_%s", strings.ToUpper(v.c.DslAbbreviation()), v.name))
 	return v.parseVariableValueFromString(env)
+}
+
+func (v *VariableBlock) ReadDefaultValue() VariableValueRead {
+	defaultAttr, hasDefault := v.HclBlock().Body.Attributes["default"]
+	if !hasDefault {
+		return NoValue
+	}
+	value, diag := defaultAttr.Expr.Value(nil)
+	return VariableValueRead{
+		Value: &value,
+		Error: diag,
+	}
 }
 
 func (v *VariableBlock) parseVariableValueFromString(env string) VariableValueRead {

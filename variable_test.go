@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
@@ -94,6 +95,45 @@ func (s *variableSuite) TestReadValueFromEnv() {
 			read := sut.ReadValueFromEnv()
 			s.NoError(read.Error)
 			s.Equal(c.expected, *read.Value)
+		})
+	}
+}
+
+func (s *variableSuite) TestReadDefaultValue() {
+	cases := []struct {
+		desc                string
+		variableDefiniation string
+		expected            VariableValueRead
+	}{
+		{
+			desc: "string default value",
+			variableDefiniation: `variable "test" {
+  default = "hello"
+}`,
+			expected: VariableValueRead{
+				Value: p(cty.StringVal("hello")),
+			},
+		},
+		{
+			desc: "no default value",
+			variableDefiniation: `variable "test" {
+}`,
+			expected: NoValue,
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			rfile, diag := hclsyntax.ParseConfig([]byte(c.variableDefiniation), "test.hcl", hcl.InitialPos)
+			require.False(s.T(), diag.HasErrors())
+			wfile, diag := hclwrite.ParseConfig([]byte(c.variableDefiniation), "test.hcl", hcl.InitialPos)
+			require.False(s.T(), diag.HasErrors())
+			sut := &VariableBlock{
+				BaseBlock: &BaseBlock{
+					hb: NewHclBlock(rfile.Body.(*hclsyntax.Body).Blocks[0], wfile.Body().Blocks()[0], nil),
+				},
+			}
+			read := sut.ReadDefaultValue()
+			s.Equal(c.expected, read)
 		})
 	}
 }
