@@ -127,7 +127,8 @@ func (s *variableSuite) TestReadDefaultValue() {
 			require.False(s.T(), diag.HasErrors())
 			sut := &VariableBlock{
 				BaseBlock: &BaseBlock{
-					hb: NewHclBlock(rfile.Body.(*hclsyntax.Body).Blocks[0], wfile.Body().Blocks()[0], nil),
+					name: "test",
+					hb:   NewHclBlock(rfile.Body.(*hclsyntax.Body).Blocks[0], wfile.Body().Blocks()[0], nil),
 				},
 			}
 			read := sut.ReadDefaultValue()

@@ -88,7 +88,7 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 	return false
 }
 
-func (c *BaseConfig) ReadVariablesFromSingleVarFile(fileContent []byte, fileName string) ([]VariableValueRead, error) {
+func (c *BaseConfig) ReadVariablesFromSingleVarFile(fileContent []byte, fileName string) (map[string]VariableValueRead, error) {
 	parser := &varFileParserImpl{dslAbbreviation: c.dslAbbreviation}
 	file, err := parser.ParseFile(fileContent, fileName)
 	if err != nil {
@@ -98,15 +98,16 @@ func (c *BaseConfig) ReadVariablesFromSingleVarFile(fileContent []byte, fileName
 	if diag.HasErrors() {
 		return nil, diag
 	}
-	var reads []VariableValueRead
+	reads := make(map[string]VariableValueRead)
 	for _, attr := range attributes {
 		value, diag := attr.Expr.Value(nil)
 		var err error
 		if diag.HasErrors() {
 			err = diag
 		}
-		reads = append(reads, NewVariableValueRead(attr.Name, &value, err))
+		reads[attr.Name] = NewVariableValueRead(attr.Name, &value, err)
 	}
+
 	return reads, nil
 }
 
