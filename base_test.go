@@ -6,7 +6,7 @@ import (
 )
 
 var testFsFactory = func() afero.Fs {
-	return afero.NewOsFs()
+	return configFs
 }
 
 type testBase struct {
@@ -17,9 +17,7 @@ type testBase struct {
 func newTestBase() *testBase {
 	t := new(testBase)
 	t.fs = afero.NewMemMapFs()
-	t.stub = gostub.Stub(&testFsFactory, func() afero.Fs {
-		return t.fs
-	})
+	t.stub = gostub.Stub(&configFs, t.fs)
 	return t
 }
 

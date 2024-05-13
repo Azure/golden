@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/lonegunmanb/hclfuncs"
+	"github.com/spf13/afero"
 	"github.com/zclconf/go-cty/cty"
 )
+
+var configFs = afero.NewOsFs()
 
 type BaseConfig struct {
 	ctx               context.Context
