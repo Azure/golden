@@ -17,8 +17,17 @@ var _ PlanBlock = &VariableBlock{}
 var NoValue VariableValueRead = VariableValueRead{}
 
 type VariableValueRead struct {
+	Name  string
 	Value *cty.Value
 	Error error
+}
+
+func NewVariableValueRead(name string, value *cty.Value, err error) VariableValueRead {
+	return VariableValueRead{
+		Name:  name,
+		Value: value,
+		Error: err,
+	}
 }
 
 func (r VariableValueRead) HasError() bool {
@@ -95,14 +104,9 @@ func (v *VariableBlock) ReadDefaultValue() VariableValueRead {
 	}
 	value, diag := defaultAttr.Expr.Value(nil)
 	if diag.HasErrors() {
-		return VariableValueRead{
-			Error: diag,
-		}
+		return NewVariableValueRead(v.Name(), nil, diag)
 	}
-	return VariableValueRead{
-		Value: &value,
-		Error: nil,
-	}
+	return NewVariableValueRead(v.Name(), &value, nil)
 }
 
 func (v *VariableBlock) parseVariableValueFromString(env string) VariableValueRead {
@@ -112,7 +116,7 @@ func (v *VariableBlock) parseVariableValueFromString(env string) VariableValueRe
 	for {
 		exp, diag := hclsyntax.ParseExpression([]byte(env), "", hcl.InitialPos)
 		if diag.HasErrors() {
-			return VariableValueRead{Error: diag}
+			return NewVariableValueRead(v.Name(), nil, diag)
 		}
 		value, diag := exp.Value(nil)
 		if diag.HasErrors() {
@@ -120,10 +124,8 @@ func (v *VariableBlock) parseVariableValueFromString(env string) VariableValueRe
 				env = fmt.Sprintf(`"%s"`, env)
 				continue
 			}
-			return VariableValueRead{Error: diag}
+			return NewVariableValueRead(v.Name(), nil, diag)
 		}
-		return VariableValueRead{
-			Value: &value,
-		}
+		return NewVariableValueRead(v.Name(), &value, nil)
 	}
 }

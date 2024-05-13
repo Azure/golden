@@ -110,9 +110,7 @@ func (s *variableSuite) TestReadDefaultValue() {
 			variableDefiniation: `variable "test" {
   default = "hello"
 }`,
-			expected: VariableValueRead{
-				Value: p(cty.StringVal("hello")),
-			},
+			expected: NewVariableValueRead("test", p(cty.StringVal("hello")), nil),
 		},
 		{
 			desc: "no default value",
