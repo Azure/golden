@@ -14,6 +14,17 @@ var _ Variable = &VariableBlock{}
 var _ PrePlanBlock = &VariableBlock{}
 var _ PlanBlock = &VariableBlock{}
 
+var NoValue VariableValueRead = VariableValueRead{}
+
+type VariableValueRead struct {
+	Value *cty.Value
+	Error error
+}
+
+func (r VariableValueRead) HasError() bool {
+	return r.Error == nil
+}
+
 type Variable interface {
 	SingleValueBlock
 	Variable()
@@ -71,15 +82,19 @@ func (v *VariableBlock) ParseVariableType() error {
 	return nil
 }
 
-func (v *VariableBlock) ReadValueFromEnv() (*cty.Value, error) {
+func (v *VariableBlock) ReadValueFromEnv() VariableValueRead {
 	env := os.Getenv(fmt.Sprintf("%s_VAR_%s", strings.ToUpper(v.c.DslAbbreviation()), v.name))
+	return v.parseVariableValueFromString(env)
+}
+
+func (v *VariableBlock) parseVariableValueFromString(env string) VariableValueRead {
 	if env == "" {
-		return nil, nil
+		return NoValue
 	}
 	for {
 		exp, diag := hclsyntax.ParseExpression([]byte(env), "", hcl.InitialPos)
 		if diag.HasErrors() {
-			return nil, diag
+			return VariableValueRead{Error: diag}
 		}
 		value, diag := exp.Value(nil)
 		if diag.HasErrors() {
@@ -87,8 +102,10 @@ func (v *VariableBlock) ReadValueFromEnv() (*cty.Value, error) {
 				env = fmt.Sprintf(`"%s"`, env)
 				continue
 			}
-			return nil, diag
+			return VariableValueRead{Error: diag}
 		}
-		return &value, nil
+		return VariableValueRead{
+			Value: &value,
+		}
 	}
 }

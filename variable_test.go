@@ -91,9 +91,9 @@ func (s *variableSuite) TestReadValueFromEnv() {
 				},
 			}
 			sut.name = "test"
-			actual, err := sut.ReadValueFromEnv()
-			s.NoError(err)
-			s.Equal(c.expected, *actual)
+			read := sut.ReadValueFromEnv()
+			s.NoError(read.Error)
+			s.Equal(c.expected, *read.Value)
 		})
 	}
 }
@@ -103,9 +103,9 @@ func (s *variableSuite) TestReadValueFromEnv_EmptyEnvShouldReturnNilCtyValue() {
 		BaseBlock: &BaseBlock{},
 	}
 	sut.name = "test"
-	actual, err := sut.ReadValueFromEnv()
-	s.NoError(err)
-	s.Nil(actual)
+	read := sut.ReadValueFromEnv()
+	s.NoError(read.Error)
+	s.Nil(read.Value)
 }
 
 func p[T any](input T) *T {
