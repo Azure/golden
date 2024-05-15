@@ -183,7 +183,7 @@ string_value = "hello"
 		s.Run(c.desc, func() {
 			s.dummyFsWithFiles(c.files)
 			// Create a new BaseConfig
-			sut := NewBasicConfig("/", "terraform", "tf", nil, nil, nil)
+			sut := NewBasicConfig("/", "terraform", "tf", nil, nil)
 			vars, err := sut.readVariablesFromDefaultVarFiles()
 			// Assert no error occurred
 			require.NoError(s.T(), err)
@@ -294,7 +294,7 @@ string_value = "hello"
 		s.Run(c.desc, func() {
 			s.dummyFsWithFiles(c.files)
 			// Create a new BaseConfig
-			sut := NewBasicConfig("/", "terraform", "tf", nil, nil, nil)
+			sut := NewBasicConfig("/", "terraform", "tf", nil, nil)
 			vars, err := sut.readVariablesFromAutoVarFiles()
 			// Assert no error occurred
 			require.NoError(s.T(), err)
@@ -318,14 +318,93 @@ func (s *baseConfigSuite) TestBaseConfig_ReadAssignedVariables() {
 	config, err := BuildDummyConfig("", "", nil)
 	require.NoError(t, err)
 	sut := config.(*DummyConfig).BaseConfig
-	sut.varsRaw = map[string]string{
-		"string_value": "hello",
+	sut.cliFlagAssignedVariables = []cliFlagAssignedVariables{
+		cliFlagAssignedVariable{
+			varName:  "string_value",
+			rawValue: "hello",
+		},
 	}
-	variables, err := sut.readAssignedVariables()
+	variables, err := sut.readCliAssignedVariables()
 	require.NoError(s.T(), err)
 	s.Len(variables, 1)
 	read, ok := variables["string_value"]
 	s.True(ok)
 	s.Equal(cty.StringVal("hello"), *read.Value)
 	s.NoError(read.Error)
+}
+
+func (s *baseConfigSuite) TestReadCliAssignedVariables() {
+	cases := []struct {
+		desc     string
+		cliFlags []cliFlagAssignedVariables
+		files    map[string]string
+		expected map[string]VariableValueRead
+	}{
+		{
+			desc: "cliFlagAssignedVariable",
+			cliFlags: []cliFlagAssignedVariables{
+				cliFlagAssignedVariable{
+					varName:  "string_value",
+					rawValue: "hello",
+				},
+			},
+			expected: map[string]VariableValueRead{
+				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
+			},
+		},
+		{
+			desc: "cliFlagAssignedVariableFile-hcl",
+			cliFlags: []cliFlagAssignedVariables{
+				cliFlagAssignedVariableFile{
+					varFileName: "/test.tfvars",
+				},
+			},
+			files: map[string]string{
+				"/test.tfvars": `string_value = "hello"`,
+			},
+			expected: map[string]VariableValueRead{
+				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
+			},
+		},
+		{
+			desc: "cliFlagAssignedVariableFile-json",
+			cliFlags: []cliFlagAssignedVariables{
+				cliFlagAssignedVariableFile{
+					varFileName: "/test.tfvars.json",
+				},
+			},
+			files: map[string]string{
+				"/test.tfvars.json": `{
+	"string_value": "hello"
+}`,
+			},
+			expected: map[string]VariableValueRead{
+				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
+			},
+		},
+	}
+
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(c.files)
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": `variable "string_value" {
+}`,
+			})
+			config, err := BuildDummyConfig("/", "", nil)
+			require.NoError(s.T(), err)
+			sut := config.(*DummyConfig).BaseConfig
+			sut.cliFlagAssignedVariables = c.cliFlags
+			vars, err := sut.readCliAssignedVariables()
+			require.NoError(s.T(), err)
+			s.Equal(len(c.expected), len(vars))
+			for _, varRead := range vars {
+				expectedValue, ok := c.expected[varRead.Name]
+				require.True(s.T(), ok)
+				s.Equal(expectedValue.Name, varRead.Name)
+				s.Equal(*expectedValue.Value, *varRead.Value)
+				s.Equal(expectedValue.Error, varRead.Error)
+			}
+		})
+	}
 }

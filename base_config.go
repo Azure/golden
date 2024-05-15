@@ -15,15 +15,14 @@ import (
 var configFs = afero.NewOsFs()
 
 type BaseConfig struct {
-	ctx               context.Context
-	basedir           string
-	d                 *Dag
-	rawBlockAddresses map[string]struct{}
-	dslFullName       string
-	dslAbbreviation   string
-	varsRaw           map[string]string
-	varFilePaths      []string
-	inputVariables    map[string]VariableValueRead
+	ctx                      context.Context
+	basedir                  string
+	d                        *Dag
+	rawBlockAddresses        map[string]struct{}
+	dslFullName              string
+	dslAbbreviation          string
+	cliFlagAssignedVariables []cliFlagAssignedVariables
+	inputVariables           map[string]VariableValueRead
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -49,19 +48,18 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	return &ctx
 }
 
-func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, varsRaw map[string]string, varFilePaths []string, ctx context.Context) *BaseConfig {
+func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, cliFlagAssignedVariables []cliFlagAssignedVariables, ctx context.Context) *BaseConfig {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	c := &BaseConfig{
-		basedir:           basedir,
-		ctx:               ctx,
-		d:                 newDag(),
-		dslAbbreviation:   dslAbbreviation,
-		dslFullName:       dslFullName,
-		rawBlockAddresses: make(map[string]struct{}),
-		varsRaw:           varsRaw,
-		varFilePaths:      varFilePaths,
+		basedir:                  basedir,
+		ctx:                      ctx,
+		d:                        newDag(),
+		dslAbbreviation:          dslAbbreviation,
+		dslFullName:              dslFullName,
+		rawBlockAddresses:        make(map[string]struct{}),
+		cliFlagAssignedVariables: cliFlagAssignedVariables,
 	}
 	return c
 }
@@ -109,8 +107,11 @@ func (c *BaseConfig) readInputVariables() (map[string]VariableValueRead, error) 
 	if err != nil {
 		return nil, err
 	}
-	//TODO:WIP
-	c.inputVariables = merge(envVars, defaultFileVars, autoFileVars)
+	cliAssignedVariables, err := c.readCliAssignedVariables()
+	if err != nil {
+		return nil, err
+	}
+	c.inputVariables = merge(envVars, defaultFileVars, autoFileVars, cliAssignedVariables)
 	return c.inputVariables, nil
 }
 
@@ -123,20 +124,14 @@ func (c *BaseConfig) readVariablesFromEnv() map[string]VariableValueRead {
 	return valuesFromEnv
 }
 
-func (c *BaseConfig) readAssignedVariables() (map[string]VariableValueRead, error) {
-	variableBlocks := Blocks[*VariableBlock](c)
-	variables := make(map[string]*VariableBlock)
+func (c *BaseConfig) readCliAssignedVariables() (map[string]VariableValueRead, error) {
 	r := make(map[string]VariableValueRead)
-	for _, vb := range variableBlocks {
-		variables[vb.Name()] = vb
-	}
-	for name, rawValue := range c.varsRaw {
-		vb, ok := variables[name]
-		if !ok {
-			return nil, fmt.Errorf(`a variable named "%s" was assigned on the command line, but cannot find a variable of that name. To use this value, add a "variable" block to the configuraion`, name)
+	for _, assignedVariables := range c.cliFlagAssignedVariables {
+		reads, err := assignedVariables.Variables(c)
+		if err != nil {
+			return nil, err
 		}
-		read := vb.parseVariableValueFromString(rawValue)
-		r[name] = read
+		r = merge(r, reads)
 	}
 	return r, nil
 }
@@ -167,7 +162,7 @@ func (c *BaseConfig) readVariablesFromDefaultVarFiles() (map[string]VariableValu
 func (c *BaseConfig) readVariablesFromVarFiles(paths []string) (map[string]VariableValueRead, error) {
 	r := make(map[string]VariableValueRead)
 	for _, path := range paths {
-		vars, err := c.ReadVariablesFromVarFile(path)
+		vars, err := c.readVariablesFromVarFile(path)
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +171,7 @@ func (c *BaseConfig) readVariablesFromVarFiles(paths []string) (map[string]Varia
 	return r, nil
 }
 
-func (c *BaseConfig) ReadVariablesFromVarFile(fileName string) (map[string]VariableValueRead, error) {
+func (c *BaseConfig) readVariablesFromVarFile(fileName string) (map[string]VariableValueRead, error) {
 	var m map[string]VariableValueRead
 	exist, err := afero.Exists(configFs, fileName)
 	if err != nil {
@@ -199,7 +194,7 @@ func (c *BaseConfig) ReadVariablesFromVarFile(fileName string) (map[string]Varia
 
 func (c *BaseConfig) ReadVariablesFromSingleVarFile(fileContent []byte, fileName string) (map[string]VariableValueRead, error) {
 	parser := &varFileParserImpl{dslAbbreviation: c.dslAbbreviation}
-	file, err := parser.ParseFile(fileContent, fileName)
+	file, err := parser.ParseFile(fileContent, filepath.Base(fileName))
 	if err != nil {
 		return nil, err
 	}
