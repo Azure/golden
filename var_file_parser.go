@@ -2,10 +2,9 @@ package golden
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"path/filepath"
 )
 
 type varFileParser interface {
@@ -19,7 +18,7 @@ type jsonFileParser struct {
 }
 
 func (j jsonFileParser) ParseFile(content []byte, fileName string) (*hcl.File, error) {
-	if !strings.HasSuffix(fileName, fmt.Sprintf(".%svars.json", j.dslAbbreviation)) {
+	if filepath.Ext(fileName) != ".json" {
 		return nil, nil
 	}
 	parser := hclparse.NewParser()
@@ -37,7 +36,7 @@ type hclFileParser struct {
 }
 
 func (h hclFileParser) ParseFile(content []byte, fileName string) (*hcl.File, error) {
-	if !strings.HasSuffix(fileName, fmt.Sprintf(".%svars", h.dslAbbreviation)) {
+	if filepath.Ext(fileName) == ".json" {
 		return nil, nil
 	}
 	parser := hclparse.NewParser()
@@ -65,5 +64,5 @@ func (h varFileParserImpl) ParseFile(content []byte, fileName string) (*hcl.File
 	if file != nil || err != nil {
 		return file, err
 	}
-	return nil, fmt.Errorf("incorrect file %s, must be ", fileName)
+	return nil, fmt.Errorf("incorrect file %s: %+v", fileName, err)
 }
