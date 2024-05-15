@@ -183,8 +183,8 @@ string_value = "hello"
 		s.Run(c.desc, func() {
 			s.dummyFsWithFiles(c.files)
 			// Create a new BaseConfig
-			sut := NewBasicConfig("/", "terraform", "tf", nil)
-			vars, err := sut.ReadVariablesFromDefaultVarFiles()
+			sut := NewBasicConfig("/", "terraform", "tf", nil, nil, nil)
+			vars, err := sut.readVariablesFromDefaultVarFiles()
 			// Assert no error occurred
 			require.NoError(s.T(), err)
 			c.assert(vars)
@@ -227,7 +227,7 @@ func (s *baseConfigSuite) TestReadVarsFromAutoVarFile() {
 				basedir:         "/",
 				dslAbbreviation: "tf",
 			}
-			vars, err := sut.ReadVariablesFromAutoVarFiles()
+			vars, err := sut.readVariablesFromAutoVarFiles()
 			require.NoError(s.T(), err)
 			s.Equal(len(c.expected), len(vars))
 			for _, varRead := range vars {
@@ -294,11 +294,38 @@ string_value = "hello"
 		s.Run(c.desc, func() {
 			s.dummyFsWithFiles(c.files)
 			// Create a new BaseConfig
-			sut := NewBasicConfig("/", "terraform", "tf", nil)
-			vars, err := sut.ReadVariablesFromAutoVarFiles()
+			sut := NewBasicConfig("/", "terraform", "tf", nil, nil, nil)
+			vars, err := sut.readVariablesFromAutoVarFiles()
 			// Assert no error occurred
 			require.NoError(s.T(), err)
 			c.assert(vars)
 		})
 	}
+}
+
+func (s *baseConfigSuite) TestBaseConfig_ReadAssignedVariables() {
+	content := `
+	variable "string_value" {
+	  type = string
+	}
+	`
+
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
+	t := s.T()
+
+	config, err := BuildDummyConfig("", "", nil)
+	require.NoError(t, err)
+	sut := config.(*DummyConfig).BaseConfig
+	sut.varsRaw = map[string]string{
+		"string_value": "hello",
+	}
+	variables, err := sut.readAssignedVariables()
+	require.NoError(s.T(), err)
+	s.Len(variables, 1)
+	read, ok := variables["string_value"]
+	s.True(ok)
+	s.Equal(cty.StringVal("hello"), *read.Value)
+	s.NoError(read.Error)
 }

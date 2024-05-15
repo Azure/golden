@@ -14,26 +14,6 @@ var _ Variable = &VariableBlock{}
 var _ PrePlanBlock = &VariableBlock{}
 var _ PlanBlock = &VariableBlock{}
 
-var NoValue VariableValueRead = VariableValueRead{}
-
-type VariableValueRead struct {
-	Name  string
-	Value *cty.Value
-	Error error
-}
-
-func NewVariableValueRead(name string, value *cty.Value, err error) VariableValueRead {
-	return VariableValueRead{
-		Name:  name,
-		Value: value,
-		Error: err,
-	}
-}
-
-func (r VariableValueRead) HasError() bool {
-	return r.Error == nil
-}
-
 type Variable interface {
 	SingleValueBlock
 	Variable()
@@ -76,7 +56,7 @@ func (v *VariableBlock) ExecuteBeforePlan() error {
 	if err := v.ParseVariableType(); err != nil {
 		return err
 	}
-	panic("implement me")
+	return nil
 }
 
 func (v *VariableBlock) ParseVariableType() error {
@@ -109,19 +89,19 @@ func (v *VariableBlock) ReadDefaultValue() VariableValueRead {
 	return NewVariableValueRead(v.Name(), &value, nil)
 }
 
-func (v *VariableBlock) parseVariableValueFromString(env string) VariableValueRead {
-	if env == "" {
+func (v *VariableBlock) parseVariableValueFromString(rawValue string) VariableValueRead {
+	if rawValue == "" {
 		return NoValue
 	}
 	for {
-		exp, diag := hclsyntax.ParseExpression([]byte(env), "", hcl.InitialPos)
+		exp, diag := hclsyntax.ParseExpression([]byte(rawValue), "", hcl.InitialPos)
 		if diag.HasErrors() {
 			return NewVariableValueRead(v.Name(), nil, diag)
 		}
 		value, diag := exp.Value(nil)
 		if diag.HasErrors() {
 			if strings.Contains(diag.Error(), "Variables not allowed") {
-				env = fmt.Sprintf(`"%s"`, env)
+				rawValue = fmt.Sprintf(`"%s"`, rawValue)
 				continue
 			}
 			return NewVariableValueRead(v.Name(), nil, diag)
