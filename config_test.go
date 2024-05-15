@@ -3,18 +3,17 @@ package golden
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/spf13/afero"
-	"github.com/stretchr/testify/suite"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 var _ Config = &DummyConfig{}
@@ -25,7 +24,7 @@ type DummyConfig struct {
 
 func NewDummyConfig(baseDir string, ctx context.Context, hclBlocks []*HclBlock) (Config, error) {
 	cfg := &DummyConfig{
-		BaseConfig: NewBasicConfig(baseDir, "faketerraform", "ft", ctx),
+		BaseConfig: NewBasicConfig(baseDir, "faketerraform", "ft", nil, nil, ctx),
 	}
 	return cfg, InitConfig(cfg, hclBlocks)
 }
