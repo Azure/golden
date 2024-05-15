@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/lonegunmanb/hclfuncs"
@@ -90,19 +91,39 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 	return false
 }
 
-func (c *BaseConfig) ReadVariablesFromVarFiles() (map[string]VariableValueRead, error) {
-	hclVarFilePath := filepath.Join(c.basedir, fmt.Sprintf("%s.%svars", c.dslFullName, c.dslAbbreviation))
-	jsonVarFilePath := fmt.Sprintf("%s.json", hclVarFilePath)
-	hclVars, err := c.ReadVariablesFromVarFile(hclVarFilePath)
-	if err != nil {
-		return nil, err
-	}
-	jsonVars, err := c.ReadVariablesFromVarFile(jsonVarFilePath)
-	if err != nil {
-		return nil, err
-	}
+func (c *BaseConfig) ReadVariablesFromAutoVarFiles() (map[string]VariableValueRead, error) {
+	autoHclVarFilePattern := fmt.Sprintf("*.auto.%svars", c.dslAbbreviation)
+	autoJsonVarFilePattern := autoHclVarFilePattern + ".json"
 
-	return merge(hclVars, jsonVars), nil
+	hclMatches, err := afero.Glob(configFs, filepath.Join(c.basedir, autoHclVarFilePattern))
+	if err != nil {
+		return nil, fmt.Errorf("cannot list auto var files at %s: %+v", c.basedir, err)
+	}
+	jsonMatches, err := afero.Glob(configFs, filepath.Join(c.basedir, autoJsonVarFilePattern))
+	if err != nil {
+		return nil, fmt.Errorf("cannot list auto var files at %s: %+v", c.basedir, err)
+	}
+	matches := append(hclMatches, jsonMatches...)
+	sort.Strings(matches)
+	return c.readVariablesFromVarFiles(matches)
+}
+
+func (c *BaseConfig) ReadVariablesFromDefaultVarFiles() (map[string]VariableValueRead, error) {
+	defaultHclVarFilePath := filepath.Join(c.basedir, fmt.Sprintf("%s.%svars", c.dslFullName, c.dslAbbreviation))
+	defaultJsonVarFilePath := defaultHclVarFilePath + ".json"
+	return c.readVariablesFromVarFiles([]string{defaultHclVarFilePath, defaultJsonVarFilePath})
+}
+
+func (c *BaseConfig) readVariablesFromVarFiles(paths []string) (map[string]VariableValueRead, error) {
+	r := make(map[string]VariableValueRead)
+	for _, path := range paths {
+		vars, err := c.ReadVariablesFromVarFile(path)
+		if err != nil {
+			return nil, err
+		}
+		r = merge(r, vars)
+	}
+	return r, nil
 }
 
 func (c *BaseConfig) ReadVariablesFromVarFile(fileName string) (map[string]VariableValueRead, error) {
