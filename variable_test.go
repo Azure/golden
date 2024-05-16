@@ -199,26 +199,52 @@ func (s *variableSuite) TestReadVariableValue_ReadDefaultIfNotSet() {
 }
 
 func (s *variableSuite) TestReadVariableValue_ReadValueFromStdPromoter() {
-	s.dummyFsWithFiles(map[string]string{
-		"test.hcl": `variable "string_value" {
+	cases := []struct {
+		desc           string
+		config         string
+		expectedOutput string
+	}{
+		{
+			desc: "variable with no description",
+			config: `variable "string_value" {
 }`,
-	})
-	mockPromoter := &mockVariableValuePromoter{
-		mockInput: "hello",
-	}
-	stub := gostub.Stub(&valuePromoter, mockPromoter)
-	defer stub.Reset()
-	config, err := BuildDummyConfig("/", "", nil, nil)
-	require.NoError(s.T(), err)
-	cfg := config.(*DummyConfig).BaseConfig
-	variableBlocks := Blocks[*VariableBlock](cfg)
-	vb := variableBlocks[0]
-	read := vb.variableValue
-	s.NotNil(read)
-	s.Equal(cty.StringVal("hello"), *read)
-	s.Equal(`var.string_value
+			expectedOutput: `var.string_value
   Enter a value: 
-`, mockPromoter.sb.String())
+`,
+		},
+		{
+			desc: "variable with description",
+			config: `variable "string_value" {
+  description = "this is a test"
+}`,
+			expectedOutput: `var.string_value
+  this is a test
+
+  Enter a value: 
+`,
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.config,
+			})
+			mockPromoter := &mockVariableValuePromoter{
+				mockInput: "hello",
+			}
+			stub := gostub.Stub(&valuePromoter, mockPromoter)
+			defer stub.Reset()
+			config, err := BuildDummyConfig("/", "", nil, nil)
+			require.NoError(s.T(), err)
+			cfg := config.(*DummyConfig).BaseConfig
+			variableBlocks := Blocks[*VariableBlock](cfg)
+			vb := variableBlocks[0]
+			read := vb.variableValue
+			s.NotNil(read)
+			s.Equal(cty.StringVal("hello"), *read)
+			s.Equal(c.expectedOutput, mockPromoter.sb.String())
+		})
+	}
 }
 
 func (s *variableSuite) TestExecuteBeforePlan_TypeConvert() {
