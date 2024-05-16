@@ -22,7 +22,7 @@ type Variable interface {
 
 type VariableBlock struct {
 	*BaseBlock
-	Description   *string `hcl:"description"`
+	Description   *string `hcl:"description,optional"`
 	variableType  *cty.Type
 	variableValue *cty.Value
 }
@@ -54,30 +54,32 @@ func (v *VariableBlock) Value() cty.Value {
 func (v *VariableBlock) Variable() {}
 
 func (v *VariableBlock) ExecuteBeforePlan() error {
-	if err := v.parseVariableType(); err != nil {
+	err := v.parseDescription()
+	if err != nil {
 		return err
 	}
-	if v.variableValue == nil {
-		variableRead, err := v.readValue()
-		if err != nil {
-			return err
-		}
-		if variableRead.Error != nil {
-			return variableRead.Error
-		}
-		value := variableRead.Value
-		if value == nil {
-			return fmt.Errorf("cannot evaluate value for var.%s", v.Name())
-		}
-		if v.variableType != nil && value.Type() != *v.variableType {
-			convertedValue, err := convert.Convert(*value, *v.variableType)
-			if err != nil {
-				return fmt.Errorf("incompatible type for var.%s, want %s, got %s", v.Name(), v.variableType.GoString(), value.Type().GoString())
-			}
-			value = &convertedValue
-		}
-		v.variableValue = value
+	if err = v.parseVariableType(); err != nil {
+		return err
 	}
+	variableRead, err := v.readValue()
+	if err != nil {
+		return err
+	}
+	if variableRead.Error != nil {
+		return variableRead.Error
+	}
+	value := variableRead.Value
+	if value == nil {
+		return fmt.Errorf("cannot evaluate value for var.%s", v.Name())
+	}
+	if v.variableType != nil && value.Type() != *v.variableType {
+		convertedValue, err := convert.Convert(*value, *v.variableType)
+		if err != nil {
+			return fmt.Errorf("incompatible type for var.%s, want %s, got %s", v.Name(), v.variableType.GoString(), value.Type().GoString())
+		}
+		value = &convertedValue
+	}
+	v.variableValue = value
 	return nil
 }
 
@@ -153,6 +155,9 @@ func (v *VariableBlock) readFromPromote() (VariableValueRead, error) {
 	promoterMutex.Lock()
 	defer promoterMutex.Unlock()
 	valuePromoter.printf("var.%s\n", v.Name())
+	if v.Description != nil {
+		valuePromoter.printf("  %s\n\n", *v.Description)
+	}
 	valuePromoter.printf("  Enter a value: ")
 	var in string
 	_, err := valuePromoter.scanln(&in)
@@ -161,4 +166,21 @@ func (v *VariableBlock) readFromPromote() (VariableValueRead, error) {
 	}
 	valuePromoter.printf("\n")
 	return v.parseVariableValueFromString(in, false), nil
+}
+
+func (v *VariableBlock) parseDescription() error {
+	attr, ok := v.HclBlock().Attributes()["description"]
+	if !ok {
+		return nil
+	}
+	value, diag := attr.Expr.Value(nil)
+	if diag.HasErrors() {
+		return diag
+	}
+	if value.Type() != cty.String {
+		return fmt.Errorf("incorrect type for `description` %s, got %s, want %s", attr.Range().String(), value.Type().GoString(), cty.String.GoString())
+	}
+	desc := value.AsString()
+	v.Description = &desc
+	return nil
 }
