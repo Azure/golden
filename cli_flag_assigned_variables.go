@@ -7,18 +7,18 @@ import (
 	"strings"
 )
 
-type cliFlagAssignedVariables interface {
+type CliFlagAssignedVariables interface {
 	Variables(c *BaseConfig) (map[string]VariableValueRead, error)
 }
 
-var _ cliFlagAssignedVariables = cliFlagAssignedVariable{}
+var _ CliFlagAssignedVariables = CliFlagAssignedVariable{}
 
-type cliFlagAssignedVariable struct {
+type CliFlagAssignedVariable struct {
 	varName  string
 	rawValue string
 }
 
-func (v cliFlagAssignedVariable) Variables(c *BaseConfig) (map[string]VariableValueRead, error) {
+func (v CliFlagAssignedVariable) Variables(c *BaseConfig) (map[string]VariableValueRead, error) {
 	variableBlocks := Blocks[*VariableBlock](c)
 	variables := make(map[string]*VariableBlock)
 	for _, vb := range variableBlocks {
@@ -34,19 +34,19 @@ func (v cliFlagAssignedVariable) Variables(c *BaseConfig) (map[string]VariableVa
 	}, nil
 }
 
-var _ cliFlagAssignedVariables = cliFlagAssignedVariableFile{}
+var _ CliFlagAssignedVariables = CliFlagAssignedVariableFile{}
 
-type cliFlagAssignedVariableFile struct {
+type CliFlagAssignedVariableFile struct {
 	varFileName string
 }
 
-func (v cliFlagAssignedVariableFile) Variables(c *BaseConfig) (map[string]VariableValueRead, error) {
+func (v CliFlagAssignedVariableFile) Variables(c *BaseConfig) (map[string]VariableValueRead, error) {
 	exist, err := afero.Exists(configFs, v.varFileName)
 	if err != nil {
 		return nil, fmt.Errorf("cannot check existance of %s: %+v", v.varFileName, err)
 	}
 	if !exist && !strings.HasPrefix(v.varFileName, c.basedir) {
-		return cliFlagAssignedVariableFile{varFileName: filepath.Join(c.basedir, v.varFileName)}.Variables(c)
+		return CliFlagAssignedVariableFile{varFileName: filepath.Join(c.basedir, v.varFileName)}.Variables(c)
 	}
 	return c.readVariablesFromVarFile(v.varFileName)
 }

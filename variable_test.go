@@ -45,7 +45,7 @@ func (s *variableSuite) TestVariableBlockWithoutTypeShouldHasNilVariableType() {
 	}
 	err := sut.parseVariableType()
 	s.NoError(err)
-	s.Nil(sut.VariableType)
+	s.Nil(sut.variableType)
 }
 
 func (s *variableSuite) TestVariableBlockWithTypeShouldParseVariableType() {
@@ -63,7 +63,7 @@ func (s *variableSuite) TestVariableBlockWithTypeShouldParseVariableType() {
 	}
 	err := sut.parseVariableType()
 	s.NoError(err)
-	s.Equal(cty.String, *sut.VariableType)
+	s.Equal(cty.String, *sut.variableType)
 }
 
 func (s *variableSuite) TestReadValueFromEnv() {
@@ -86,7 +86,7 @@ func (s *variableSuite) TestReadValueFromEnv() {
 	for _, c := range cases {
 		s.Run(c.desc, func() {
 			s.T().Setenv(fmt.Sprintf("FT_VAR_test"), c.valueString)
-			config, err := NewDummyConfig(".", context.TODO(), nil)
+			config, err := NewDummyConfig(".", context.TODO(), nil, nil)
 			require.NoError(s.T(), err)
 			sut := &VariableBlock{
 				BaseBlock: &BaseBlock{
@@ -140,7 +140,7 @@ func (s *variableSuite) TestReadDefaultValue() {
 }
 
 func (s *variableSuite) TestReadValueFromEnv_EmptyEnvShouldReturnNilCtyValue() {
-	config, err := NewDummyConfig(".", context.TODO(), nil)
+	config, err := NewDummyConfig(".", context.TODO(), nil, nil)
 	require.NoError(s.T(), err)
 	sut := &VariableBlock{
 		BaseBlock: &BaseBlock{
@@ -156,7 +156,7 @@ func (s *variableSuite) TestReadValueFromEnv_EmptyEnvShouldReturnNilCtyValue() {
 func (s *variableSuite) TestReadVariableValue_ReadDefaultIfNotSet() {
 	cases := []struct {
 		desc     string
-		cliFlags []cliFlagAssignedVariables
+		cliFlags []CliFlagAssignedVariables
 		files    map[string]string
 		expected VariableValueRead
 	}{
@@ -165,9 +165,9 @@ func (s *variableSuite) TestReadVariableValue_ReadDefaultIfNotSet() {
 			expected: NewVariableValueRead("string_value", p(cty.StringVal("world")), nil),
 		},
 		{
-			desc: "cliFlagAssignedVariableFile-hcl",
-			cliFlags: []cliFlagAssignedVariables{
-				cliFlagAssignedVariableFile{
+			desc: "CliFlagAssignedVariableFile-hcl",
+			cliFlags: []CliFlagAssignedVariables{
+				CliFlagAssignedVariableFile{
 					varFileName: "/test.tfvars",
 				},
 			},
@@ -186,10 +186,9 @@ func (s *variableSuite) TestReadVariableValue_ReadDefaultIfNotSet() {
   default = "world"
 }`,
 			})
-			config, err := BuildDummyConfig("/", "", nil)
+			config, err := BuildDummyConfig("/", "", c.cliFlags, nil)
 			require.NoError(s.T(), err)
 			cfg := config.(*DummyConfig).BaseConfig
-			cfg.cliFlagAssignedVariables = c.cliFlags
 			variableBlocks := Blocks[*VariableBlock](cfg)
 			vb := variableBlocks[0]
 			read, err := vb.readValue()
@@ -209,17 +208,56 @@ func (s *variableSuite) TestReadVariableValue_ReadValueFromStdPromoter() {
 	}
 	stub := gostub.Stub(&valuePromoter, mockPromoter)
 	defer stub.Reset()
-	config, err := BuildDummyConfig("/", "", nil)
+	config, err := BuildDummyConfig("/", "", nil, nil)
 	require.NoError(s.T(), err)
 	cfg := config.(*DummyConfig).BaseConfig
 	variableBlocks := Blocks[*VariableBlock](cfg)
 	vb := variableBlocks[0]
-	read, err := vb.readValue()
-	require.NoError(s.T(), err)
-	s.Equal(cty.StringVal("hello"), *read.Value)
+	read := vb.variableValue
+	s.NotNil(read)
+	s.Equal(cty.StringVal("hello"), *read)
 	s.Equal(`var.string_value
   Enter a value: 
 `, mockPromoter.sb.String())
+}
+
+func (s *variableSuite) TestExecuteBeforePlan_TypeConvert() {
+	cases := []struct {
+		desc        string
+		variableDef string
+		env         map[string]string
+		expectedVal cty.Value
+	}{
+		{
+			desc: "variable with default value",
+			variableDef: `variable "test" {
+                type = string
+            }`,
+			env: map[string]string{
+				"FT_VAR_test": "true",
+			},
+			expectedVal: cty.StringVal("true"),
+		},
+		// TODO:more tests for unsuccessful type conversion
+	}
+
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			for k, v := range c.env {
+				s.T().Setenv(k, v)
+			}
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.variableDef,
+			})
+			config, err := BuildDummyConfig("/", "", nil, nil)
+			require.NoError(s.T(), err)
+			cfg := config.(*DummyConfig).BaseConfig
+			sut := Blocks[*VariableBlock](cfg)[0]
+			err = sut.ExecuteBeforePlan()
+			require.NoError(s.T(), err)
+			s.Equal(c.expectedVal, *sut.variableValue)
+		})
+	}
 }
 
 var _ variableValuePromoter = &mockVariableValuePromoter{}

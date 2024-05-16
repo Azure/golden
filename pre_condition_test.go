@@ -37,7 +37,7 @@ func (s *preConditionSuite) TestPreCondition_PassedHardcodedCondition() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": content,
 	})
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
 	s.NoError(err)
@@ -62,7 +62,7 @@ func (s *preConditionSuite) TestPreCondition_FailedHardcodedConditionShouldFaile
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": content,
 	})
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
 	s.NotNil(err)
@@ -81,7 +81,7 @@ func (s *preConditionSuite) TestPreCondition_FailedHardcodedCondition() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": content,
 	})
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
 	s.NotNil(err)
@@ -109,7 +109,7 @@ func (s *preConditionSuite) TestPreCondition_FunctionCallInCondition() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": content,
 	})
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
 	s.NotNil(err)
@@ -132,7 +132,7 @@ func (s *preConditionSuite) TestMultiplePreConditions_containFailedCheck() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": content,
 	})
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
 	s.NotNil(err)
@@ -154,7 +154,7 @@ func (s *preConditionSuite) TestMultiplePreConditions_allPassedCheck() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": content,
 	})
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(config)
 	s.NoError(err)
@@ -185,7 +185,7 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttribute() {
 	})
 
 	// Parse the config
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 
 	// Plan the parsed configuration
@@ -218,7 +218,7 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttributeFailedCheck
 	})
 
 	// Parse the config
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 
 	// Plan the parsed configuration
@@ -253,7 +253,7 @@ func (s *preConditionSuite) TestPreCondition_ReferMultipleBlockAttributes() {
 	})
 
 	// Parse the config
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 
 	// Plan the parsed configuration
@@ -289,7 +289,7 @@ func (s *preConditionSuite) TestPreCondition_ReferMultipleBlockAttributesFailedC
 	})
 
 	// Parse the config
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 
 	// Plan the parsed configuration
@@ -323,7 +323,7 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttributeWithForEach
 	})
 
 	// Parse the config
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 
 	// Plan the parsed configuration
@@ -357,7 +357,7 @@ func (s *preConditionSuite) TestPreCondition_ReferOtherBlockAttributeWithForEach
 	})
 
 	// Parse the config
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 
 	// Plan the parsed configuration
