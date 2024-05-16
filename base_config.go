@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"sync"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/lonegunmanb/hclfuncs"
@@ -23,7 +24,7 @@ type BaseConfig struct {
 	dslAbbreviation          string
 	cliFlagAssignedVariables []cliFlagAssignedVariables
 	inputVariables           map[string]VariableValueRead
-	uLock                    *UpgradableLock
+	inputVariableReadsLoader *sync.Once
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -61,7 +62,7 @@ func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, cliFlagAssigne
 		dslFullName:              dslFullName,
 		rawBlockAddresses:        make(map[string]struct{}),
 		cliFlagAssignedVariables: cliFlagAssignedVariables,
-		uLock:                    NewUpgradableLock(),
+		inputVariableReadsLoader: &sync.Once{},
 	}
 	return c
 }
@@ -97,13 +98,11 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 }
 
 func (c *BaseConfig) readInputVariables() (map[string]VariableValueRead, error) {
-	c.uLock.RLock()
-	defer c.uLock.RUnlock()
 	if c.inputVariables != nil {
 		return c.inputVariables, nil
 	}
 	var readErr error
-	c.uLock.MaybeUpgrade(func() {
+	c.inputVariableReadsLoader.Do(func() {
 		envVars := c.readVariablesFromEnv()
 		defaultFileVars, err := c.readVariablesFromDefaultVarFiles()
 		if err != nil {
@@ -129,7 +128,7 @@ func (c *BaseConfig) readVariablesFromEnv() map[string]VariableValueRead {
 	valuesFromEnv := make(map[string]VariableValueRead)
 	variables := Blocks[*VariableBlock](c)
 	for _, vb := range variables {
-		valuesFromEnv[vb.Name()] = vb.ReadValueFromEnv()
+		valuesFromEnv[vb.Name()] = vb.readValueFromEnv()
 	}
 	return valuesFromEnv
 }

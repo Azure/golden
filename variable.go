@@ -53,13 +53,13 @@ func (v *VariableBlock) Value() cty.Value {
 func (v *VariableBlock) Variable() {}
 
 func (v *VariableBlock) ExecuteBeforePlan() error {
-	if err := v.ParseVariableType(); err != nil {
+	if err := v.parseVariableType(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (v *VariableBlock) ParseVariableType() error {
+func (v *VariableBlock) parseVariableType() error {
 	typeAttr, ok := v.HclBlock().Body.Attributes["type"]
 	if !ok {
 		return nil
@@ -72,12 +72,26 @@ func (v *VariableBlock) ParseVariableType() error {
 	return nil
 }
 
-func (v *VariableBlock) ReadValueFromEnv() VariableValueRead {
-	env := os.Getenv(fmt.Sprintf("%s_VAR_%s", strings.ToUpper(v.c.DslAbbreviation()), v.name))
-	return v.parseVariableValueFromString(env)
+func (v *VariableBlock) readValue() VariableValueRead {
+	variables, _ := v.BaseBlock.c.readInputVariables()
+	read, ok := variables[v.Name()]
+	if ok && read != NoValue {
+		return read
+	}
+	defaultRead := v.readDefaultValue()
+	return defaultRead
+	//if defaultRead != NoValue {
+	//	return defaultRead
+	//}
+	//return v.readFromPromote()
 }
 
-func (v *VariableBlock) ReadDefaultValue() VariableValueRead {
+func (v *VariableBlock) readValueFromEnv() VariableValueRead {
+	env := os.Getenv(fmt.Sprintf("%s_VAR_%s", strings.ToUpper(v.c.DslAbbreviation()), v.name))
+	return v.parseVariableValueFromString(env, true)
+}
+
+func (v *VariableBlock) readDefaultValue() VariableValueRead {
 	defaultAttr, hasDefault := v.HclBlock().Body.Attributes["default"]
 	if !hasDefault {
 		return NoValue
@@ -89,8 +103,8 @@ func (v *VariableBlock) ReadDefaultValue() VariableValueRead {
 	return NewVariableValueRead(v.Name(), &value, nil)
 }
 
-func (v *VariableBlock) parseVariableValueFromString(rawValue string) VariableValueRead {
-	if rawValue == "" {
+func (v *VariableBlock) parseVariableValueFromString(rawValue string, treatEmptyAsNoValue bool) VariableValueRead {
+	if rawValue == "" && treatEmptyAsNoValue {
 		return NoValue
 	}
 	for {
@@ -99,11 +113,11 @@ func (v *VariableBlock) parseVariableValueFromString(rawValue string) VariableVa
 			return NewVariableValueRead(v.Name(), nil, diag)
 		}
 		value, diag := exp.Value(nil)
+		if strings.Contains(diag.Error(), "Variables not allowed") {
+			rawValue = fmt.Sprintf(`"%s"`, rawValue)
+			continue
+		}
 		if diag.HasErrors() {
-			if strings.Contains(diag.Error(), "Variables not allowed") {
-				rawValue = fmt.Sprintf(`"%s"`, rawValue)
-				continue
-			}
 			return NewVariableValueRead(v.Name(), nil, diag)
 		}
 		return NewVariableValueRead(v.Name(), &value, nil)

@@ -28,7 +28,7 @@ func (v cliFlagAssignedVariable) Variables(c *BaseConfig) (map[string]VariableVa
 	if !ok {
 		return nil, fmt.Errorf(`a variable named "%s" was assigned on the command line, but cannot find a variable of that name. To use this value, add a "variable" block to the configuraion`, v.varName)
 	}
-	read := vb.parseVariableValueFromString(v.rawValue)
+	read := vb.parseVariableValueFromString(v.rawValue, false)
 	return map[string]VariableValueRead{
 		read.Name: read,
 	}, nil

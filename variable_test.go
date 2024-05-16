@@ -41,7 +41,7 @@ func (s *variableSuite) TestVariableBlockWithoutTypeShouldHasNilVariableType() {
 			},
 		},
 	}
-	err := sut.ParseVariableType()
+	err := sut.parseVariableType()
 	s.NoError(err)
 	s.Nil(sut.VariableType)
 }
@@ -59,7 +59,7 @@ func (s *variableSuite) TestVariableBlockWithTypeShouldParseVariableType() {
 			},
 		},
 	}
-	err := sut.ParseVariableType()
+	err := sut.parseVariableType()
 	s.NoError(err)
 	s.Equal(cty.String, *sut.VariableType)
 }
@@ -92,7 +92,7 @@ func (s *variableSuite) TestReadValueFromEnv() {
 				},
 			}
 			sut.name = "test"
-			read := sut.ReadValueFromEnv()
+			read := sut.readValueFromEnv()
 			s.NoError(read.Error)
 			s.Equal(c.expected, *read.Value)
 		})
@@ -131,7 +131,7 @@ func (s *variableSuite) TestReadDefaultValue() {
 					hb:   NewHclBlock(rfile.Body.(*hclsyntax.Body).Blocks[0], wfile.Body().Blocks()[0], nil),
 				},
 			}
-			read := sut.ReadDefaultValue()
+			read := sut.readDefaultValue()
 			s.Equal(c.expected, read)
 		})
 	}
@@ -146,9 +146,54 @@ func (s *variableSuite) TestReadValueFromEnv_EmptyEnvShouldReturnNilCtyValue() {
 		},
 	}
 	sut.name = "test"
-	read := sut.ReadValueFromEnv()
+	read := sut.readValueFromEnv()
 	s.NoError(read.Error)
 	s.Nil(read.Value)
+}
+
+func (s *variableSuite) TestReadVariableValue_ReadDefaultIfNotSet() {
+	cases := []struct {
+		desc     string
+		cliFlags []cliFlagAssignedVariables
+		files    map[string]string
+		expected VariableValueRead
+	}{
+		{
+			desc:     "no value set",
+			expected: NewVariableValueRead("string_value", p(cty.StringVal("world")), nil),
+		},
+		{
+			desc: "cliFlagAssignedVariableFile-hcl",
+			cliFlags: []cliFlagAssignedVariables{
+				cliFlagAssignedVariableFile{
+					varFileName: "/test.tfvars",
+				},
+			},
+			files: map[string]string{
+				"/test.tfvars": `string_value = "hello"`,
+			},
+			expected: NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
+		},
+	}
+
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(c.files)
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": `variable "string_value" {
+  default = "world"
+}`,
+			})
+			config, err := BuildDummyConfig("/", "", nil)
+			require.NoError(s.T(), err)
+			cfg := config.(*DummyConfig).BaseConfig
+			cfg.cliFlagAssignedVariables = c.cliFlags
+			variableBlocks := Blocks[*VariableBlock](cfg)
+			vb := variableBlocks[0]
+			read := vb.readValue()
+			s.Equal(c.expected, read)
+		})
+	}
 }
 
 func p[T any](input T) *T {
