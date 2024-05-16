@@ -72,18 +72,20 @@ func (v *VariableBlock) parseVariableType() error {
 	return nil
 }
 
-func (v *VariableBlock) readValue() VariableValueRead {
-	variables, _ := v.BaseBlock.c.readInputVariables()
+func (v *VariableBlock) readValue() (VariableValueRead, error) {
+	variables, err := v.BaseBlock.c.readInputVariables()
+	if err != nil {
+		return NoValue, err
+	}
 	read, ok := variables[v.Name()]
 	if ok && read != NoValue {
-		return read
+		return read, nil
 	}
 	defaultRead := v.readDefaultValue()
-	return defaultRead
-	//if defaultRead != NoValue {
-	//	return defaultRead
-	//}
-	//return v.readFromPromote()
+	if defaultRead != NoValue {
+		return defaultRead, nil
+	}
+	return v.readFromPromote()
 }
 
 func (v *VariableBlock) readValueFromEnv() VariableValueRead {
@@ -122,4 +124,18 @@ func (v *VariableBlock) parseVariableValueFromString(rawValue string, treatEmpty
 		}
 		return NewVariableValueRead(v.Name(), &value, nil)
 	}
+}
+
+func (v *VariableBlock) readFromPromote() (VariableValueRead, error) {
+	promoterMutex.Lock()
+	defer promoterMutex.Unlock()
+	valuePromoter.printf("var.%s\n", v.Name())
+	valuePromoter.printf("  Enter a value: ")
+	var in string
+	_, err := valuePromoter.scanln(&in)
+	if err != nil {
+		return NoValue, err
+	}
+	valuePromoter.printf("\n")
+	return v.parseVariableValueFromString(in, false), nil
 }
