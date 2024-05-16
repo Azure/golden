@@ -23,6 +23,7 @@ type BaseConfig struct {
 	dslAbbreviation          string
 	cliFlagAssignedVariables []cliFlagAssignedVariables
 	inputVariables           map[string]VariableValueRead
+	uLock                    *UpgradableLock
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -60,6 +61,7 @@ func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, cliFlagAssigne
 		dslFullName:              dslFullName,
 		rawBlockAddresses:        make(map[string]struct{}),
 		cliFlagAssignedVariables: cliFlagAssignedVariables,
+		uLock:                    NewUpgradableLock(),
 	}
 	return c
 }
@@ -95,24 +97,32 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 }
 
 func (c *BaseConfig) readInputVariables() (map[string]VariableValueRead, error) {
+	c.uLock.RLock()
+	defer c.uLock.RUnlock()
 	if c.inputVariables != nil {
 		return c.inputVariables, nil
 	}
-	envVars := c.readVariablesFromEnv()
-	defaultFileVars, err := c.readVariablesFromDefaultVarFiles()
-	if err != nil {
-		return nil, err
-	}
-	autoFileVars, err := c.readVariablesFromAutoVarFiles()
-	if err != nil {
-		return nil, err
-	}
-	cliAssignedVariables, err := c.readCliAssignedVariables()
-	if err != nil {
-		return nil, err
-	}
-	c.inputVariables = merge(envVars, defaultFileVars, autoFileVars, cliAssignedVariables)
-	return c.inputVariables, nil
+	var readErr error
+	c.uLock.MaybeUpgrade(func() {
+		envVars := c.readVariablesFromEnv()
+		defaultFileVars, err := c.readVariablesFromDefaultVarFiles()
+		if err != nil {
+			readErr = err
+			return
+		}
+		autoFileVars, err := c.readVariablesFromAutoVarFiles()
+		if err != nil {
+			readErr = err
+			return
+		}
+		cliAssignedVariables, err := c.readCliAssignedVariables()
+		if err != nil {
+			readErr = err
+			return
+		}
+		c.inputVariables = merge(envVars, defaultFileVars, autoFileVars, cliAssignedVariables)
+	})
+	return c.inputVariables, readErr
 }
 
 func (c *BaseConfig) readVariablesFromEnv() map[string]VariableValueRead {

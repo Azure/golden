@@ -382,6 +382,64 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
 			},
 		},
+		{
+			desc: "cliFlagAssignedVariableFile-json",
+			cliFlags: []cliFlagAssignedVariables{
+				cliFlagAssignedVariableFile{
+					varFileName: "/test.tfvars.json",
+				},
+			},
+			files: map[string]string{
+				"/test.tfvars.json": `{
+	"string_value": "hello"
+}`,
+			},
+			expected: map[string]VariableValueRead{
+				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
+			},
+		},
+		{
+			desc: "cliFlagAssignedVariableFile-precedence-0",
+			cliFlags: []cliFlagAssignedVariables{
+				cliFlagAssignedVariable{
+					varName:  "string_value",
+					rawValue: "world",
+				},
+				cliFlagAssignedVariableFile{
+					varFileName: "/test.tfvars.json",
+				},
+			},
+			files: map[string]string{
+				"/test.tfvars.json": `{
+	"string_value": "hello"
+}`,
+			},
+			expected: map[string]VariableValueRead{
+				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
+			},
+		},
+		{
+			desc: "cliFlagAssignedVariableFile-precedence-1",
+			cliFlags: []cliFlagAssignedVariables{
+				cliFlagAssignedVariableFile{
+					varFileName: "/test.tfvars.json",
+				},
+				cliFlagAssignedVariableFile{
+					varFileName: "/test.tfvars",
+				},
+			},
+			files: map[string]string{
+				"/test.tfvars.json": `{
+	"string_value": "hello"
+}`,
+				"/test.tfvars": `
+string_value = "world"
+`,
+			},
+			expected: map[string]VariableValueRead{
+				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("world")), nil),
+			},
+		},
 	}
 
 	for _, c := range cases {
