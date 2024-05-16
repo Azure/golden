@@ -22,21 +22,21 @@ type DummyConfig struct {
 	*BaseConfig
 }
 
-func NewDummyConfig(baseDir string, ctx context.Context, hclBlocks []*HclBlock) (Config, error) {
+func NewDummyConfig(baseDir string, ctx context.Context, hclBlocks []*HclBlock, cliFlagAssignedVariables []CliFlagAssignedVariables) (Config, error) {
 	cfg := &DummyConfig{
-		BaseConfig: NewBasicConfig(baseDir, "faketerraform", "ft", nil, ctx),
+		BaseConfig: NewBasicConfig(baseDir, "faketerraform", "ft", cliFlagAssignedVariables, ctx),
 	}
 	return cfg, InitConfig(cfg, hclBlocks)
 }
 
-func BuildDummyConfig(baseDir, cfgDir string, ctx context.Context) (Config, error) {
+func BuildDummyConfig(baseDir, cfgDir string, cliFlagAssignedVariables []CliFlagAssignedVariables, ctx context.Context) (Config, error) {
 	var err error
 	hclBlocks, err := loadHclBlocks(false, cfgDir)
 	if err != nil {
 		return nil, err
 	}
 
-	c, err := NewDummyConfig(baseDir, ctx, hclBlocks)
+	c, err := NewDummyConfig(baseDir, ctx, hclBlocks, cliFlagAssignedVariables)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (s *configSuite) TestParseConfig() {
 	})
 	t := s.T()
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	_, err = RunDummyPlan(config)
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func (s *configSuite) TestUnregisteredBlock() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": hcl,
 	})
-	_, err := BuildDummyConfig("", "", nil)
+	_, err := BuildDummyConfig("", "", nil, nil)
 	require.NotNil(t, err)
 	expectedError := "unregistered data: unregistered_data"
 	assert.Contains(t, err.Error(), expectedError)
@@ -195,7 +195,7 @@ func (s *configSuite) TestInvalidBlockType() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": hcl,
 	})
-	_, err := BuildDummyConfig("", "", nil)
+	_, err := BuildDummyConfig("", "", nil, nil)
 	require.NotNil(t, err)
 
 	expectedError := "invalid block type: invalid_block"
@@ -215,7 +215,7 @@ func (s *configSuite) TestFunctionInEvalContext() {
 		"test.hcl": configStr,
 	})
 
-	config, err := BuildDummyConfig("/", ".", nil)
+	config, err := BuildDummyConfig("/", ".", nil, nil)
 	require.NoError(t, err)
 	_, err = RunDummyPlan(config)
 	require.NoError(t, err)
@@ -236,7 +236,7 @@ locals {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": code,
 	})
-	c, err := BuildDummyConfig("/", "", nil)
+	c, err := BuildDummyConfig("/", "", nil, nil)
 	s.NoError(err)
 	locals := Blocks[Local](c)
 	s.Len(locals, 2)
@@ -256,7 +256,7 @@ func (s *configSuite) TestForEach_ForEachBlockShouldBeExpanded() {
 		"test.hcl": hclConfig,
 	})
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	s.Len(Blocks[TestData](config), 3)
 }
@@ -278,7 +278,7 @@ func (s *configSuite) TestForEachAndAddressIndex() {
 		"test.hcl": hclConfig,
 	})
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(s.T(), err)
 
 	p, err := RunDummyPlan(config)
@@ -309,7 +309,7 @@ func (s *configSuite) TestForEach_forEachAsToggle() {
 		"test.hcl": hclConfig,
 	})
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(s.T(), err)
 	s.Len(Blocks[TestData](config), 0)
 }
@@ -328,7 +328,7 @@ func (s *configSuite) TestForEach_blocksWithIndexShouldHasNewBlockId() {
 		"test.hcl": hclConfig,
 	})
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(s.T(), err)
 	ds := Blocks[TestData](config)
 	s.Len(ds, 2)

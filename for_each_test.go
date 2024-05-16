@@ -39,7 +39,7 @@ func (s *forEachTestSuite) TestForEachBlockWithAttributeThatHasDefaultValue() {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": config,
 	})
-	c, err := BuildDummyConfig("", "", nil)
+	c, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(c)
 	s.NoError(err)
@@ -62,7 +62,7 @@ data "dummy" foo {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": code,
 	})
-	c, err := BuildDummyConfig("/", "", nil)
+	c, err := BuildDummyConfig("/", "", nil, nil)
 	s.NoError(err)
 	p, err := RunDummyPlan(c)
 	s.NoError(err)
@@ -86,7 +86,7 @@ resource "dummy" bar {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": code,
 	})
-	c, err := BuildDummyConfig("/", "", nil)
+	c, err := BuildDummyConfig("/", "", nil, nil)
 	s.NoError(err)
 	p, err := RunDummyPlan(c)
 	s.NoError(err)

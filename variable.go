@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 	"os"
 	"strings"
 )
@@ -22,8 +23,8 @@ type Variable interface {
 type VariableBlock struct {
 	*BaseBlock
 	Description   *string `hcl:"description"`
-	VariableType  *cty.Type
-	VariableValue cty.Value
+	variableType  *cty.Type
+	variableValue *cty.Value
 }
 
 func (v *VariableBlock) ExecuteDuringPlan() error {
@@ -47,7 +48,7 @@ func (v *VariableBlock) CanExecutePrePlan() bool {
 }
 
 func (v *VariableBlock) Value() cty.Value {
-	return v.VariableValue
+	return *v.variableValue
 }
 
 func (v *VariableBlock) Variable() {}
@@ -56,19 +57,41 @@ func (v *VariableBlock) ExecuteBeforePlan() error {
 	if err := v.parseVariableType(); err != nil {
 		return err
 	}
+	if v.variableValue == nil {
+		variableRead, err := v.readValue()
+		if err != nil {
+			return err
+		}
+		if variableRead.Error != nil {
+			return variableRead.Error
+		}
+		value := variableRead.Value
+		if value == nil {
+			return fmt.Errorf("cannot evaluate value for var.%s", v.Name())
+		}
+		if v.variableType != nil && value.Type() != *v.variableType {
+			convertedValue, err := convert.Convert(*value, *v.variableType)
+			if err != nil {
+				return fmt.Errorf("incompatible type for var.%s, want %s, got %s", v.Name(), v.variableType.GoString(), value.Type().GoString())
+			}
+			value = &convertedValue
+		}
+		v.variableValue = value
+	}
 	return nil
 }
 
 func (v *VariableBlock) parseVariableType() error {
 	typeAttr, ok := v.HclBlock().Body.Attributes["type"]
 	if !ok {
+		v.variableType = nil
 		return nil
 	}
 	t, diag := typeexpr.Type(typeAttr.Expr)
 	if diag.HasErrors() {
 		return diag
 	}
-	v.VariableType = &t
+	v.variableType = &t
 	return nil
 }
 

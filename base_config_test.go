@@ -315,15 +315,14 @@ func (s *baseConfigSuite) TestBaseConfig_ReadAssignedVariables() {
 	})
 	t := s.T()
 
-	config, err := BuildDummyConfig("", "", nil)
-	require.NoError(t, err)
-	sut := config.(*DummyConfig).BaseConfig
-	sut.cliFlagAssignedVariables = []cliFlagAssignedVariables{
-		cliFlagAssignedVariable{
+	config, err := BuildDummyConfig("", "", []CliFlagAssignedVariables{
+		CliFlagAssignedVariable{
 			varName:  "string_value",
 			rawValue: "hello",
 		},
-	}
+	}, nil)
+	require.NoError(t, err)
+	sut := config.(*DummyConfig).BaseConfig
 	variables, err := sut.readCliAssignedVariables()
 	require.NoError(s.T(), err)
 	s.Len(variables, 1)
@@ -336,14 +335,14 @@ func (s *baseConfigSuite) TestBaseConfig_ReadAssignedVariables() {
 func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 	cases := []struct {
 		desc     string
-		cliFlags []cliFlagAssignedVariables
+		cliFlags []CliFlagAssignedVariables
 		files    map[string]string
 		expected map[string]VariableValueRead
 	}{
 		{
-			desc: "cliFlagAssignedVariable",
-			cliFlags: []cliFlagAssignedVariables{
-				cliFlagAssignedVariable{
+			desc: "CliFlagAssignedVariable",
+			cliFlags: []CliFlagAssignedVariables{
+				CliFlagAssignedVariable{
 					varName:  "string_value",
 					rawValue: "hello",
 				},
@@ -353,9 +352,9 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 			},
 		},
 		{
-			desc: "cliFlagAssignedVariableFile-hcl",
-			cliFlags: []cliFlagAssignedVariables{
-				cliFlagAssignedVariableFile{
+			desc: "CliFlagAssignedVariableFile-hcl",
+			cliFlags: []CliFlagAssignedVariables{
+				CliFlagAssignedVariableFile{
 					varFileName: "/test.tfvars",
 				},
 			},
@@ -367,9 +366,9 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 			},
 		},
 		{
-			desc: "cliFlagAssignedVariableFile-json",
-			cliFlags: []cliFlagAssignedVariables{
-				cliFlagAssignedVariableFile{
+			desc: "CliFlagAssignedVariableFile-json",
+			cliFlags: []CliFlagAssignedVariables{
+				CliFlagAssignedVariableFile{
 					varFileName: "/test.tfvars.json",
 				},
 			},
@@ -383,9 +382,9 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 			},
 		},
 		{
-			desc: "cliFlagAssignedVariableFile-json",
-			cliFlags: []cliFlagAssignedVariables{
-				cliFlagAssignedVariableFile{
+			desc: "CliFlagAssignedVariableFile-json",
+			cliFlags: []CliFlagAssignedVariables{
+				CliFlagAssignedVariableFile{
 					varFileName: "/test.tfvars.json",
 				},
 			},
@@ -399,13 +398,13 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 			},
 		},
 		{
-			desc: "cliFlagAssignedVariableFile-precedence-0",
-			cliFlags: []cliFlagAssignedVariables{
-				cliFlagAssignedVariable{
+			desc: "CliFlagAssignedVariableFile-precedence-0",
+			cliFlags: []CliFlagAssignedVariables{
+				CliFlagAssignedVariable{
 					varName:  "string_value",
 					rawValue: "world",
 				},
-				cliFlagAssignedVariableFile{
+				CliFlagAssignedVariableFile{
 					varFileName: "/test.tfvars.json",
 				},
 			},
@@ -419,12 +418,12 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 			},
 		},
 		{
-			desc: "cliFlagAssignedVariableFile-precedence-1",
-			cliFlags: []cliFlagAssignedVariables{
-				cliFlagAssignedVariableFile{
+			desc: "CliFlagAssignedVariableFile-precedence-1",
+			cliFlags: []CliFlagAssignedVariables{
+				CliFlagAssignedVariableFile{
 					varFileName: "/test.tfvars.json",
 				},
-				cliFlagAssignedVariableFile{
+				CliFlagAssignedVariableFile{
 					varFileName: "/test.tfvars",
 				},
 			},
@@ -449,10 +448,9 @@ string_value = "world"
 				"test.hcl": `variable "string_value" {
 }`,
 			})
-			config, err := BuildDummyConfig("/", "", nil)
+			config, err := BuildDummyConfig("/", "", c.cliFlags, nil)
 			require.NoError(s.T(), err)
 			sut := config.(*DummyConfig).BaseConfig
-			sut.cliFlagAssignedVariables = c.cliFlags
 			vars, err := sut.readCliAssignedVariables()
 			require.NoError(s.T(), err)
 			s.Equal(len(c.expected), len(vars))

@@ -44,7 +44,7 @@ func (s *dagSuite) TestDag_DagVertex() {
 		"test.hcl": content,
 	})
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	s.NoError(err)
 	d := newDag()
 	err = d.buildDag(blocks(config))
@@ -76,7 +76,7 @@ func (s *dagSuite) TestDag_DagBlocksShouldBeConnectedWithEdgeIfThereIsReferenceB
 		"test.hcl": content,
 	})
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	dag := newDag()
 	err = dag.buildDag(blocks(config))
@@ -104,7 +104,7 @@ func (s *dagSuite) TestDag_CycleDependencyShouldCauseError() {
 		"test.hcl": content,
 	})
 
-	_, err := BuildDummyConfig("", "", nil)
+	_, err := BuildDummyConfig("", "", nil, nil)
 	s.NotNil(err)
 	// The error message must contain both of two blocks' address so we're sure that it's about the loop.
 	s.Contains(err.Error(), "data.dummy.sample")

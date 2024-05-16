@@ -3,7 +3,7 @@ package golden
 import (
 	"math/big"
 	"testing"
-	
+
 	"github.com/ahmetb/go-linq/v3"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/prashantv/gostub"
@@ -131,7 +131,7 @@ func (s *blockTestSuite) Test_DependsOn() {
 		"test.hcl": code,
 	})
 	t := s.T()
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	_, err = RunDummyPlan(config)
 	require.NoError(t, err)
@@ -172,7 +172,7 @@ func (s *blockTestSuite) Test_DependsOnMustBeListOfBlockAddress() {
 				"test.hcl": c.code,
 			})
 
-			config, err := BuildDummyConfig("", "", nil)
+			config, err := BuildDummyConfig("", "", nil, nil)
 			require.NoError(s.T(), err)
 			_, err = RunDummyPlan(config)
 			s.NotNil(err)
@@ -194,7 +194,7 @@ func Test_NestedBlock(t *testing.T) {
 	defer stub.Reset()
 	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	block := config.GetVertices()["data.dummy.this"].(Block)
 	err = Decode(block)
@@ -221,7 +221,7 @@ func Test_NestedBlock_Dynamic(t *testing.T) {
 	defer stub.Reset()
 	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	block := config.GetVertices()["data.dummy.this"].(Block)
 	err = Decode(block)
@@ -248,7 +248,7 @@ func Test_NestedBlock_DynamicUseForEach(t *testing.T) {
 	defer stub.Reset()
 	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	block := config.GetVertices()["data.dummy.this"].(Block)
 	err = Decode(block)
@@ -275,7 +275,7 @@ func Test_NestedBlock_DynamicMultipleDecode(t *testing.T) {
 	defer stub.Reset()
 	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	block := config.GetVertices()["data.dummy.this"].(Block)
 	err = Decode(block)
@@ -307,7 +307,7 @@ func Test_NestedBlock_DynamicAndNonDynamic(t *testing.T) {
 	defer stub.Reset()
 	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	block := config.GetVertices()["data.dummy.this"].(Block)
 	err = Decode(block)
@@ -335,7 +335,7 @@ func Test_NestedBlock_DynamicWithMultipleElementes(t *testing.T) {
 	defer stub.Reset()
 	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	block := config.GetVertices()["data.dummy.this"].(Block)
 	err = Decode(block)
@@ -374,7 +374,7 @@ func Test_NestedBlock_DynamicInsideDynamic(t *testing.T) {
 	defer stub.Reset()
 	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
 
-	config, err := BuildDummyConfig("", "", nil)
+	config, err := BuildDummyConfig("", "", nil, nil)
 	require.NoError(t, err)
 	block := config.GetVertices()["data.dummy.this"].(Block)
 	err = Decode(block)

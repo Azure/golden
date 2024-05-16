@@ -22,7 +22,7 @@ type BaseConfig struct {
 	rawBlockAddresses        map[string]struct{}
 	dslFullName              string
 	dslAbbreviation          string
-	cliFlagAssignedVariables []cliFlagAssignedVariables
+	cliFlagAssignedVariables []CliFlagAssignedVariables
 	inputVariables           map[string]VariableValueRead
 	inputVariableReadsLoader *sync.Once
 }
@@ -50,7 +50,7 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	return &ctx
 }
 
-func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, cliFlagAssignedVariables []cliFlagAssignedVariables, ctx context.Context) *BaseConfig {
+func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, cliFlagAssignedVariables []CliFlagAssignedVariables, ctx context.Context) *BaseConfig {
 	if ctx == nil {
 		ctx = context.Background()
 	}

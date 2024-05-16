@@ -36,7 +36,7 @@ locals {
 	s.dummyFsWithFiles(map[string]string{
 		"test.hcl": code,
 	})
-	c, err := BuildDummyConfig("/", "", nil)
+	c, err := BuildDummyConfig("/", "", nil, nil)
 	s.NoError(err)
 	_, err = RunDummyPlan(c)
 	s.NoError(err)
