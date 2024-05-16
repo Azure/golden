@@ -6,9 +6,11 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/prashantv/gostub"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
+	"strings"
 	"testing"
 )
 
@@ -190,10 +192,51 @@ func (s *variableSuite) TestReadVariableValue_ReadDefaultIfNotSet() {
 			cfg.cliFlagAssignedVariables = c.cliFlags
 			variableBlocks := Blocks[*VariableBlock](cfg)
 			vb := variableBlocks[0]
-			read := vb.readValue()
+			read, err := vb.readValue()
+			require.NoError(s.T(), err)
 			s.Equal(c.expected, read)
 		})
 	}
+}
+
+func (s *variableSuite) TestReadVariableValue_ReadValueFromStdPromoter() {
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": `variable "string_value" {
+}`,
+	})
+	mockPromoter := &mockVariableValuePromoter{
+		mockInput: "hello",
+	}
+	stub := gostub.Stub(&valuePromoter, mockPromoter)
+	defer stub.Reset()
+	config, err := BuildDummyConfig("/", "", nil)
+	require.NoError(s.T(), err)
+	cfg := config.(*DummyConfig).BaseConfig
+	variableBlocks := Blocks[*VariableBlock](cfg)
+	vb := variableBlocks[0]
+	read, err := vb.readValue()
+	require.NoError(s.T(), err)
+	s.Equal(cty.StringVal("hello"), *read.Value)
+	s.Equal(`var.string_value
+  Enter a value: 
+`, mockPromoter.sb.String())
+}
+
+var _ variableValuePromoter = &mockVariableValuePromoter{}
+
+type mockVariableValuePromoter struct {
+	sb        strings.Builder
+	mockInput string
+}
+
+func (m *mockVariableValuePromoter) printf(format string, a ...any) (n int, err error) {
+	return m.sb.WriteString(fmt.Sprintf(format, a...))
+}
+
+func (m *mockVariableValuePromoter) scanln(a ...any) (n int, err error) {
+	p := a[0].(*string)
+	*p = m.mockInput
+	return 0, nil
 }
 
 func p[T any](input T) *T {
