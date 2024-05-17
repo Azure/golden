@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -249,13 +250,14 @@ func (s *variableSuite) TestReadVariableValue_ReadValueFromStdPromoter() {
 
 func (s *variableSuite) TestExecuteBeforePlan_TypeConvert() {
 	cases := []struct {
-		desc        string
-		variableDef string
-		env         map[string]string
-		expectedVal cty.Value
+		desc                      string
+		variableDef               string
+		env                       map[string]string
+		expectedVal               cty.Value
+		expectedErrorMessageRegex *string
 	}{
 		{
-			desc: "variable with default value",
+			desc: "successful conversion",
 			variableDef: `variable "test" {
                 type = string
             }`,
@@ -264,7 +266,16 @@ func (s *variableSuite) TestExecuteBeforePlan_TypeConvert() {
 			},
 			expectedVal: cty.StringVal("true"),
 		},
-		// TODO:more tests for unsuccessful type conversion
+		{
+			desc: "unsuccessful conversion",
+			variableDef: `variable "test" {
+  type = number
+}`,
+			env: map[string]string{
+				"FT_VAR_test": "true",
+			},
+			expectedErrorMessageRegex: p("incompatible type for var.test, want cty.Number, got cty.Bool"),
+		},
 	}
 
 	for _, c := range cases {
@@ -276,12 +287,99 @@ func (s *variableSuite) TestExecuteBeforePlan_TypeConvert() {
 				"test.hcl": c.variableDef,
 			})
 			config, err := BuildDummyConfig("/", "", nil, nil)
+			if c.expectedErrorMessageRegex != nil {
+				s.Regexp(regexp.MustCompile(*c.expectedErrorMessageRegex), err.Error())
+				return
+			}
 			require.NoError(s.T(), err)
 			cfg := config.(*DummyConfig).BaseConfig
 			sut := Blocks[*VariableBlock](cfg)[0]
-			err = sut.ExecuteBeforePlan()
 			require.NoError(s.T(), err)
 			s.Equal(c.expectedVal, *sut.variableValue)
+		})
+	}
+}
+
+func (s *variableSuite) TestExecuteBeforePlan_Validation() {
+	cases := []struct {
+		desc                      string
+		variableDef               string
+		expectedErrorMessageRegex *string
+	}{
+		{
+			desc: "successful single validation",
+			variableDef: `variable "test" {
+                default = "valid"
+				validation {
+					condition = var.test == "valid"
+					error_message = "var.test must be valid"
+				}
+            }`,
+		},
+		{
+			desc: "unsuccessful single validation",
+			variableDef: `variable "test" {
+  				default = "invalid"
+				validation {
+					condition = var.test == "valid"
+					error_message = "var.test must be valid"
+				}
+			}`,
+			expectedErrorMessageRegex: p("invalid value for variable test"),
+		},
+		{
+			desc: "successful multiple validations",
+			variableDef: `variable "test" {
+                default = "valid"
+				validation {
+					condition = var.test == "valid"
+					error_message = "var.test must be valid"
+				}
+				validation {
+					condition = var.test != ""
+					error_message = "var.test must be valid"
+				}
+            }`,
+		},
+		{
+			desc: "one unsuccessful validation, one successful validation",
+			variableDef: `variable "test" {
+  				default = "invalid"
+				validation {
+					condition = var.test == "valid"
+					error_message = "var.test must be valid"
+				}
+				validation {
+					condition = var.test == "invalid"
+					error_message = "var.test must be invalid"
+				}
+			}`,
+			expectedErrorMessageRegex: p("invalid value for variable test"),
+		},
+		{
+			desc: "function call in condition",
+			variableDef: `variable "test" {
+                default = "valid"
+				validation {
+					condition = startswith(var.test, "v")
+					error_message = "var.test must starts with v"
+				}
+            }`,
+		},
+	}
+
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.variableDef,
+			})
+			_, err := BuildDummyConfig("/", "", nil, nil)
+			if c.expectedErrorMessageRegex != nil {
+				require.NotNil(s.T(), err)
+				s.Regexp(regexp.MustCompile(*c.expectedErrorMessageRegex), err.Error())
+				return
+			}
+			require.NoError(s.T(), err)
 		})
 	}
 }
