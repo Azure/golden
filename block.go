@@ -13,6 +13,10 @@ import (
 	"strings"
 )
 
+type BlockCustomizedRefType interface {
+	CustomizedRefType() string
+}
+
 type BlockType interface {
 	BlockType() string
 }

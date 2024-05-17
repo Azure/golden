@@ -337,3 +337,34 @@ func (s *configSuite) TestForEach_blocksWithIndexShouldHasNewBlockId() {
 	d1 := ruleBlocks[1].(Block)
 	s.NotEqual(d0.Id(), d1.Id())
 }
+
+func (s *configSuite) TestParseConfigWithVariable() {
+	content := `
+	variable "test" {
+		default = "hello"
+	}
+
+	data "dummy" sample {
+		data = {
+          key = var.test
+        }
+	}
+	`
+
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
+	t := s.T()
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	_, err = RunDummyPlan(config)
+	require.NoError(t, err)
+	dataBlocks := Blocks[TestData](config)
+	assert.Len(t, dataBlocks, 1)
+	dummyData, ok := dataBlocks[0].(*DummyData)
+	require.True(t, ok)
+	assert.Equal(t, map[string]string{
+		"key": "hello",
+	}, dummyData.Tags)
+}

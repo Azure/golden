@@ -17,6 +17,7 @@ var _ Variable = &VariableBlock{}
 var _ PrePlanBlock = &VariableBlock{}
 var _ PlanBlock = &VariableBlock{}
 var _ CustomDecode = &VariableBlock{}
+var _ BlockCustomizedRefType = &VariableBlock{}
 
 type Variable interface {
 	SingleValueBlock
@@ -50,6 +51,10 @@ func (v *VariableBlock) Type() string {
 
 func (v *VariableBlock) BlockType() string {
 	return "variable"
+}
+
+func (v *VariableBlock) CustomizedRefType() string {
+	return "var"
 }
 
 func (v *VariableBlock) AddressLength() int {

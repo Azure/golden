@@ -41,6 +41,9 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	}
 	for bt, bs := range c.blocksByTypes() {
 		sample := bs[0]
+		if s, ok := sample.(BlockCustomizedRefType); ok {
+			bt = s.CustomizedRefType()
+		}
 		if _, ok := sample.(SingleValueBlock); ok {
 			ctx.Variables[bt] = SingleValues(castBlock[SingleValueBlock](bs))
 			continue
