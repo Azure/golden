@@ -76,6 +76,9 @@ func (c *BaseConfig) RunPlan() error {
 }
 
 func (c *BaseConfig) GetVertices() map[string]interface{} {
+	if c.d == nil {
+		return nil
+	}
 	return c.d.GetVertices()
 }
 

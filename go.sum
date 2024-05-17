@@ -171,6 +171,8 @@ github.com/lonegunmanb/go-defaults v1.4.0 h1:Lf/wnb28dYqoUdpRTL+e+bFkW79ThpSH7Aw
 github.com/lonegunmanb/go-defaults v1.4.0/go.mod h1:TwYUNCQyY/Qz5UzoH5Nlj7YPIT4EkgNANrPN8U9h9MU=
 github.com/lonegunmanb/hclfuncs v0.7.0 h1:RcXmaMaPjODga3hAiaYwcNv+xM9W9qaNwYUfeO0LxMI=
 github.com/lonegunmanb/hclfuncs v0.7.0/go.mod h1:ZXtl6hOBc7aiovX0BbQpOt9SZpZpumY2xk2TI9Qtbu4=
+github.com/lonegunmanb/hclfuncs v0.8.0 h1:O6sOuIPecwSVhAXrArWGIVmqWH31QJA27obZczaU37Q=
+github.com/lonegunmanb/hclfuncs v0.8.0/go.mod h1:ZXtl6hOBc7aiovX0BbQpOt9SZpZpumY2xk2TI9Qtbu4=
 github.com/mattn/go-colorable v0.0.9/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=
 github.com/mattn/go-colorable v0.1.4/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVcfRqFIhoBtE=
 github.com/mattn/go-colorable v0.1.6/go.mod h1:u6P/XSegPjTcexA+o6vUJrdnUu04hMope9wVRipJSqc=

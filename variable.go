@@ -2,8 +2,10 @@ package golden
 
 import (
 	"fmt"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -14,17 +16,28 @@ import (
 var _ Variable = &VariableBlock{}
 var _ PrePlanBlock = &VariableBlock{}
 var _ PlanBlock = &VariableBlock{}
+var _ CustomDecode = &VariableBlock{}
 
 type Variable interface {
 	SingleValueBlock
 	Variable()
 }
 
+type VariableValidation struct {
+	Condition    bool   `hcl:"condition"`
+	ErrorMessage string `hcl:"error_message"`
+}
+
 type VariableBlock struct {
 	*BaseBlock
-	Description   *string `hcl:"description,optional"`
+	Description   *string
+	Validations   []VariableValidation
 	variableType  *cty.Type
 	variableValue *cty.Value
+}
+
+func (v *VariableBlock) Decode(block *HclBlock, context *hcl.EvalContext) error {
+	return nil
 }
 
 func (v *VariableBlock) ExecuteDuringPlan() error {
@@ -80,7 +93,7 @@ func (v *VariableBlock) ExecuteBeforePlan() error {
 		value = &convertedValue
 	}
 	v.variableValue = value
-	return nil
+	return v.validationCheck()
 }
 
 func (v *VariableBlock) parseVariableType() error {
@@ -183,4 +196,36 @@ func (v *VariableBlock) parseDescription() error {
 	desc := value.AsString()
 	v.Description = &desc
 	return nil
+}
+
+func (v *VariableBlock) validationCheck() error {
+	var err error
+	for _, nb := range v.HclBlock().NestedBlocks() {
+		if nb.Type != "validation" {
+			continue
+		}
+		ctx := v.EvalContext()
+		ctx.Variables = map[string]cty.Value{
+			"var": cty.ObjectVal(map[string]cty.Value{
+				v.Name(): *v.variableValue,
+			}),
+		}
+		var vb VariableValidation
+		diag := gohcl.DecodeBody(nb.Body, ctx, &vb)
+		if diag.HasErrors() {
+			err = multierror.Append(err, diag)
+			continue
+		}
+		v.Validations = append(v.Validations, vb)
+	}
+	if err != nil {
+		return err
+	}
+	for _, validation := range v.Validations {
+		if validation.Condition {
+			continue
+		}
+		err = multierror.Append(err, fmt.Errorf("invalid value for variable %s\n%s\n%s", v.Name(), v.HclBlock().Range().String(), validation.ErrorMessage))
+	}
+	return err
 }
