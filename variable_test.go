@@ -86,7 +86,7 @@ func (s *variableSuite) TestReadValueFromEnv() {
 	}
 	for _, c := range cases {
 		s.Run(c.desc, func() {
-			s.T().Setenv(fmt.Sprintf("FT_VAR_test"), c.valueString)
+			s.T().Setenv("FT_VAR_test", c.valueString)
 			config, err := NewDummyConfig(".", context.TODO(), nil, nil)
 			require.NoError(s.T(), err)
 			sut := &VariableBlock{
