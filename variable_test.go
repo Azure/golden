@@ -168,9 +168,7 @@ func (s *variableSuite) TestReadVariableValue_ReadDefaultIfNotSet() {
 		{
 			desc: "CliFlagAssignedVariableFile-hcl",
 			cliFlags: []CliFlagAssignedVariables{
-				CliFlagAssignedVariableFile{
-					varFileName: "/test.tfvars",
-				},
+				NewCliFlagAssignedVariableFile("/test.tfvars"),
 			},
 			files: map[string]string{
 				"/test.tfvars": `string_value = "hello"`,

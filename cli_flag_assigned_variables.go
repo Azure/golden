@@ -18,6 +18,13 @@ type CliFlagAssignedVariable struct {
 	rawValue string
 }
 
+func NewCliFlagAssignedVariable(varName, rawValue string) CliFlagAssignedVariable {
+	return CliFlagAssignedVariable{
+		varName:  varName,
+		rawValue: rawValue,
+	}
+}
+
 func (v CliFlagAssignedVariable) Variables(c *BaseConfig) (map[string]VariableValueRead, error) {
 	variableBlocks := Blocks[*VariableBlock](c)
 	variables := make(map[string]*VariableBlock)
@@ -38,6 +45,12 @@ var _ CliFlagAssignedVariables = CliFlagAssignedVariableFile{}
 
 type CliFlagAssignedVariableFile struct {
 	varFileName string
+}
+
+func NewCliFlagAssignedVariableFile(varFileName string) CliFlagAssignedVariableFile {
+	return CliFlagAssignedVariableFile{
+		varFileName: varFileName,
+	}
 }
 
 func (v CliFlagAssignedVariableFile) Variables(c *BaseConfig) (map[string]VariableValueRead, error) {

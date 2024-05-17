@@ -368,9 +368,7 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 		{
 			desc: "CliFlagAssignedVariableFile-json",
 			cliFlags: []CliFlagAssignedVariables{
-				CliFlagAssignedVariableFile{
-					varFileName: "/test.tfvars.json",
-				},
+				NewCliFlagAssignedVariableFile("/test.tfvars.json"),
 			},
 			files: map[string]string{
 				"/test.tfvars.json": `{
@@ -384,9 +382,7 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 		{
 			desc: "CliFlagAssignedVariableFile-json",
 			cliFlags: []CliFlagAssignedVariables{
-				CliFlagAssignedVariableFile{
-					varFileName: "/test.tfvars.json",
-				},
+				NewCliFlagAssignedVariableFile("/test.tfvars.json"),
 			},
 			files: map[string]string{
 				"/test.tfvars.json": `{
@@ -400,13 +396,8 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 		{
 			desc: "CliFlagAssignedVariableFile-precedence-0",
 			cliFlags: []CliFlagAssignedVariables{
-				CliFlagAssignedVariable{
-					varName:  "string_value",
-					rawValue: "world",
-				},
-				CliFlagAssignedVariableFile{
-					varFileName: "/test.tfvars.json",
-				},
+				NewCliFlagAssignedVariable("string_value", "world"),
+				NewCliFlagAssignedVariableFile("/test.tfvars.json"),
 			},
 			files: map[string]string{
 				"/test.tfvars.json": `{
@@ -420,12 +411,8 @@ func (s *baseConfigSuite) TestReadCliAssignedVariables() {
 		{
 			desc: "CliFlagAssignedVariableFile-precedence-1",
 			cliFlags: []CliFlagAssignedVariables{
-				CliFlagAssignedVariableFile{
-					varFileName: "/test.tfvars.json",
-				},
-				CliFlagAssignedVariableFile{
-					varFileName: "/test.tfvars",
-				},
+				NewCliFlagAssignedVariableFile("/test.tfvars.json"),
+				NewCliFlagAssignedVariableFile("/test.tfvars"),
 			},
 			files: map[string]string{
 				"/test.tfvars.json": `{
