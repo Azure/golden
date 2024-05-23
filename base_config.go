@@ -127,6 +127,10 @@ func (c *BaseConfig) ReadInputVariables() (map[string]VariableValueRead, error) 
 	return c.inputVariables, readErr
 }
 
+func (c *BaseConfig) SetInputVariables(values map[string]VariableValueRead) {
+	c.inputVariables = values
+}
+
 func (c *BaseConfig) readVariablesFromEnv() map[string]VariableValueRead {
 	valuesFromEnv := make(map[string]VariableValueRead)
 	variables := Blocks[*VariableBlock](c)

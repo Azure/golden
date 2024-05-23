@@ -25,6 +25,7 @@ type Config interface {
 	DslFullName() string
 	DslAbbreviation() string
 	ReadInputVariables() (map[string]VariableValueRead, error)
+	SetInputVariables(map[string]VariableValueRead)
 	expandBlock(b Block) ([]Block, error)
 }
 
