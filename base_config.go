@@ -100,7 +100,7 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 	return false
 }
 
-func (c *BaseConfig) readInputVariables() (map[string]VariableValueRead, error) {
+func (c *BaseConfig) ReadInputVariables() (map[string]VariableValueRead, error) {
 	if c.inputVariables != nil {
 		return c.inputVariables, nil
 	}

@@ -24,7 +24,7 @@ type Config interface {
 	ValidBlockAddress(address string) bool
 	DslFullName() string
 	DslAbbreviation() string
-	readInputVariables() (map[string]VariableValueRead, error)
+	ReadInputVariables() (map[string]VariableValueRead, error)
 	expandBlock(b Block) ([]Block, error)
 }
 
