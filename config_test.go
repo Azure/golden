@@ -24,7 +24,7 @@ type DummyConfig struct {
 
 func NewDummyConfig(baseDir string, ctx context.Context, hclBlocks []*HclBlock, cliFlagAssignedVariables []CliFlagAssignedVariables) (Config, error) {
 	cfg := &DummyConfig{
-		BaseConfig: NewBasicConfig(baseDir, "faketerraform", "ft", cliFlagAssignedVariables, ctx),
+		BaseConfig: NewBasicConfig(baseDir, "faketerraform", "ft", nil, cliFlagAssignedVariables, ctx),
 	}
 	return cfg, InitConfig(cfg, hclBlocks)
 }

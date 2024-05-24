@@ -18,6 +18,7 @@ var configFs = afero.NewOsFs()
 type BaseConfig struct {
 	ctx                      context.Context
 	basedir                  string
+	varConfigDir             *string
 	d                        *Dag
 	rawBlockAddresses        map[string]struct{}
 	dslFullName              string
@@ -53,12 +54,13 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	return &ctx
 }
 
-func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, cliFlagAssignedVariables []CliFlagAssignedVariables, ctx context.Context) *BaseConfig {
+func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, varConfigDir *string, cliFlagAssignedVariables []CliFlagAssignedVariables, ctx context.Context) *BaseConfig {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	c := &BaseConfig{
 		basedir:                  basedir,
+		varConfigDir:             varConfigDir,
 		ctx:                      ctx,
 		d:                        newDag(),
 		dslAbbreviation:          dslAbbreviation,
@@ -103,7 +105,7 @@ func (c *BaseConfig) ValidBlockAddress(address string) bool {
 	return false
 }
 
-func (c *BaseConfig) ReadInputVariables() (map[string]VariableValueRead, error) {
+func (c *BaseConfig) readInputVariables() (map[string]VariableValueRead, error) {
 	if c.inputVariables != nil {
 		return c.inputVariables, nil
 	}
@@ -128,10 +130,6 @@ func (c *BaseConfig) ReadInputVariables() (map[string]VariableValueRead, error) 
 		c.inputVariables = merge(envVars, defaultFileVars, autoFileVars, cliAssignedVariables)
 	})
 	return c.inputVariables, readErr
-}
-
-func (c *BaseConfig) SetInputVariables(values map[string]VariableValueRead) {
-	c.inputVariables = values
 }
 
 func (c *BaseConfig) readVariablesFromEnv() map[string]VariableValueRead {
@@ -159,13 +157,13 @@ func (c *BaseConfig) readVariablesFromAutoVarFiles() (map[string]VariableValueRe
 	autoHclVarFilePattern := fmt.Sprintf("*.auto.%svars", c.dslAbbreviation)
 	autoJsonVarFilePattern := autoHclVarFilePattern + ".json"
 
-	hclMatches, err := afero.Glob(configFs, filepath.Join(c.basedir, autoHclVarFilePattern))
+	hclMatches, err := afero.Glob(configFs, filepath.Join(c.variableConfigFilesDir(), autoHclVarFilePattern))
 	if err != nil {
-		return nil, fmt.Errorf("cannot list auto var files at %s: %+v", c.basedir, err)
+		return nil, fmt.Errorf("cannot list auto var files at %s: %+v", c.variableConfigFilesDir(), err)
 	}
-	jsonMatches, err := afero.Glob(configFs, filepath.Join(c.basedir, autoJsonVarFilePattern))
+	jsonMatches, err := afero.Glob(configFs, filepath.Join(c.variableConfigFilesDir(), autoJsonVarFilePattern))
 	if err != nil {
-		return nil, fmt.Errorf("cannot list auto var files at %s: %+v", c.basedir, err)
+		return nil, fmt.Errorf("cannot list auto var files at %s: %+v", c.variableConfigFilesDir(), err)
 	}
 	matches := append(hclMatches, jsonMatches...)
 	sort.Strings(matches)
@@ -173,7 +171,7 @@ func (c *BaseConfig) readVariablesFromAutoVarFiles() (map[string]VariableValueRe
 }
 
 func (c *BaseConfig) readVariablesFromDefaultVarFiles() (map[string]VariableValueRead, error) {
-	defaultHclVarFilePath := filepath.Join(c.basedir, fmt.Sprintf("%s.%svars", c.dslFullName, c.dslAbbreviation))
+	defaultHclVarFilePath := filepath.Join(c.variableConfigFilesDir(), fmt.Sprintf("%s.%svars", c.dslFullName, c.dslAbbreviation))
 	defaultJsonVarFilePath := defaultHclVarFilePath + ".json"
 	return c.readVariablesFromVarFiles([]string{defaultHclVarFilePath, defaultJsonVarFilePath})
 }
@@ -232,6 +230,13 @@ func (c *BaseConfig) ReadVariablesFromSingleVarFile(fileContent []byte, fileName
 	}
 
 	return reads, nil
+}
+
+func (c *BaseConfig) variableConfigFilesDir() string {
+	if c.varConfigDir != nil {
+		return *c.varConfigDir
+	}
+	return c.basedir
 }
 
 func (c *BaseConfig) blocksByTypes() map[string][]Block {

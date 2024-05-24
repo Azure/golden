@@ -116,7 +116,7 @@ func (v *VariableBlock) parseVariableType() error {
 }
 
 func (v *VariableBlock) readValue() (VariableValueRead, error) {
-	variables, err := v.BaseBlock.c.ReadInputVariables()
+	variables, err := v.BaseBlock.c.readInputVariables()
 	if err != nil {
 		return NoValue, err
 	}

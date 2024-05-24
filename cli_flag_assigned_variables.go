@@ -58,8 +58,8 @@ func (v CliFlagAssignedVariableFile) Variables(c *BaseConfig) (map[string]Variab
 	if err != nil {
 		return nil, fmt.Errorf("cannot check existance of %s: %+v", v.varFileName, err)
 	}
-	if !exist && !strings.HasPrefix(v.varFileName, c.basedir) {
-		return CliFlagAssignedVariableFile{varFileName: filepath.Join(c.basedir, v.varFileName)}.Variables(c)
+	if !exist && !strings.HasPrefix(v.varFileName, c.variableConfigFilesDir()) {
+		return CliFlagAssignedVariableFile{varFileName: filepath.Join(c.variableConfigFilesDir(), v.varFileName)}.Variables(c)
 	}
 	return c.readVariablesFromVarFile(v.varFileName)
 }

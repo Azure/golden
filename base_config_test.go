@@ -4,7 +4,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
-	"path/filepath"
 	"testing"
 )
 
@@ -105,9 +104,10 @@ obj_value = {
 
 func (s *baseConfigSuite) TestBaseConfig_ReadVariablesFromDefaultVarFiles() {
 	cases := []struct {
-		desc   string
-		files  map[string]string
-		assert func(map[string]VariableValueRead)
+		desc         string
+		files        map[string]string
+		varConfigDir *string
+		assert       func(map[string]VariableValueRead)
 	}{
 		{
 			desc: "json vars merge with hcl vars",
@@ -178,12 +178,26 @@ string_value = "hello"
 				s.Equal("world", vars["string_value"].Value.AsString())
 			},
 		},
+		{
+			desc: "default vars in other folder",
+			files: map[string]string{
+				"/config/terraform.tfvars": `
+string_value = "hello"
+`,
+			},
+			varConfigDir: p("/config"),
+			assert: func(vars map[string]VariableValueRead) {
+				// Assert the variables were read correctly
+				s.Len(vars, 1)
+				s.Equal("hello", vars["string_value"].Value.AsString())
+			},
+		},
 	}
 	for _, c := range cases {
 		s.Run(c.desc, func() {
 			s.dummyFsWithFiles(c.files)
 			// Create a new BaseConfig
-			sut := NewBasicConfig("/", "terraform", "tf", nil, nil)
+			sut := NewBasicConfig("/", "terraform", "tf", c.varConfigDir, nil, nil)
 			vars, err := sut.readVariablesFromDefaultVarFiles()
 			// Assert no error occurred
 			require.NoError(s.T(), err)
@@ -194,25 +208,38 @@ string_value = "hello"
 
 func (s *baseConfigSuite) TestReadVarsFromAutoVarFile() {
 	cases := []struct {
-		desc     string
-		filename string
-		content  string
-		expected map[string]VariableValueRead
+		desc         string
+		varConfigDir *string
+		files        map[string]string
+		expected     map[string]VariableValueRead
 	}{
 		{
-			desc:     "valid hcl config",
-			filename: "a.auto.tfvars",
-			content:  `string_value = "hello"`,
+			desc: "valid hcl config",
+			files: map[string]string{
+				"/a.auto.tfvars": `string_value = "hello"`,
+			},
 			expected: map[string]VariableValueRead{
 				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
 			},
 		},
 		{
-			desc:     "valid json config",
-			filename: "a.auto.tfvars.json",
-			content: `{
+			desc: "valid json config",
+			files: map[string]string{
+				"/a.auto.tfvars.json": `{
 	"string_value": "hello"
 }`,
+			},
+			expected: map[string]VariableValueRead{
+				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
+			},
+		},
+		{
+			desc: "valid hcl config in other folder",
+			files: map[string]string{
+				"/config/a.auto.tfvars": `string_value = "hello"`,
+				"/a.auto.tfvars":        `string_value = "should_not_be_this"`,
+			},
+			varConfigDir: p("/config"),
 			expected: map[string]VariableValueRead{
 				"string_value": NewVariableValueRead("string_value", p(cty.StringVal("hello")), nil),
 			},
@@ -220,12 +247,11 @@ func (s *baseConfigSuite) TestReadVarsFromAutoVarFile() {
 	}
 	for _, c := range cases {
 		s.Run(c.desc, func() {
-			s.dummyFsWithFiles(map[string]string{
-				filepath.Join("/", c.filename): c.content,
-			})
+			s.dummyFsWithFiles(c.files)
 			sut := &BaseConfig{
 				basedir:         "/",
 				dslAbbreviation: "tf",
+				varConfigDir:    c.varConfigDir,
 			}
 			vars, err := sut.readVariablesFromAutoVarFiles()
 			require.NoError(s.T(), err)
@@ -294,7 +320,7 @@ string_value = "hello"
 		s.Run(c.desc, func() {
 			s.dummyFsWithFiles(c.files)
 			// Create a new BaseConfig
-			sut := NewBasicConfig("/", "terraform", "tf", nil, nil)
+			sut := NewBasicConfig("/", "terraform", "tf", nil, nil, nil)
 			vars, err := sut.readVariablesFromAutoVarFiles()
 			// Assert no error occurred
 			require.NoError(s.T(), err)
