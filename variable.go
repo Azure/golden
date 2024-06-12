@@ -209,7 +209,7 @@ func (v *VariableBlock) validationCheck() error {
 		if nb.Type != "validation" {
 			continue
 		}
-		ctx := v.EvalContext()
+		ctx := v.c.EmptyEvalContext()
 		ctx.Variables = map[string]cty.Value{
 			"var": cty.ObjectVal(map[string]cty.Value{
 				v.Name(): *v.variableValue,

@@ -51,8 +51,13 @@ func (s *forEachTestSuite) TestForEachBlockWithAttributeThatHasDefaultValue() {
 }
 
 func (s *forEachTestSuite) TestForEachBlockInvolvingVariable() {
-	// The order of blocks is crucial here. The block with the variable must be defined first
-	config := `
+	cases := []struct {
+		config string
+		desc   string
+	}{
+		{
+			// The order of blocks is crucial here. The block with the variable must be defined first
+			config: `
 data "dummy" "sample" {
 	for_each = var.numbers
 }
@@ -60,16 +65,44 @@ data "dummy" "sample" {
 variable "numbers" {
 	type = set(number)
 }
-`
-	s.dummyFsWithFiles(map[string]string{
-		"test.hcl": config,
-	})
-	c, err := BuildDummyConfig("", "", []CliFlagAssignedVariables{
-		NewCliFlagAssignedVariable("numbers", "[1]"),
-	}, nil)
-	require.NoError(s.T(), err)
-	_, err = RunDummyPlan(c)
-	s.NoError(err)
+`,
+			desc: "without_validation",
+		},
+		{
+			desc: "with_validation",
+			config: `
+data "dummy" "sample" {
+	for_each = var.numbers
+}
+
+variable "numbers" {
+	type = set(number)
+	validation {
+		condition = length(var.numbers) > 0
+		error_message = "numbers must not be empty"
+	}
+}
+
+variable "dummy" {
+  type = number
+  default = 1
+}
+`,
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.config,
+			})
+			c, err := BuildDummyConfig("", "", []CliFlagAssignedVariables{
+				NewCliFlagAssignedVariable("numbers", "[1]"),
+			}, nil)
+			require.NoError(s.T(), err)
+			_, err = RunDummyPlan(c)
+			s.NoError(err)
+		})
+	}
 }
 
 func (s *forEachTestSuite) TestLocals_locals_as_for_each() {

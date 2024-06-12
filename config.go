@@ -18,6 +18,7 @@ type directedAcyclicGraph interface {
 type Config interface {
 	directedAcyclicGraph
 	Context() context.Context
+	EmptyEvalContext() *hcl.EvalContext
 	EvalContext() *hcl.EvalContext
 	RunPrePlan() error
 	RunPlan() error

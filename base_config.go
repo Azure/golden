@@ -35,11 +35,15 @@ func (c *BaseConfig) Context() context.Context {
 func (c *BaseConfig) DslFullName() string     { return c.dslFullName }
 func (c *BaseConfig) DslAbbreviation() string { return c.dslAbbreviation }
 
-func (c *BaseConfig) EvalContext() *hcl.EvalContext {
-	ctx := hcl.EvalContext{
+func (c *BaseConfig) EmptyEvalContext() *hcl.EvalContext {
+	return &hcl.EvalContext{
 		Functions: hclfuncs.Functions(c.basedir),
 		Variables: make(map[string]cty.Value),
 	}
+}
+
+func (c *BaseConfig) EvalContext() *hcl.EvalContext {
+	ctx := c.EmptyEvalContext()
 	for bt, bs := range c.blocksByTypes() {
 		sample := bs[0]
 		if s, ok := sample.(BlockCustomizedRefType); ok {
@@ -51,7 +55,7 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 		}
 		ctx.Variables[bt] = Values(bs)
 	}
-	return &ctx
+	return ctx
 }
 
 func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, varConfigDir *string, cliFlagAssignedVariables []CliFlagAssignedVariables, ctx context.Context) *BaseConfig {
