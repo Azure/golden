@@ -45,8 +45,20 @@ func (d *Dag) addEdge(from, to string) error {
 func (d *Dag) runDag(c Config, onReady func(Block) error) error {
 	var err error
 	pending := linkedlistqueue.New()
-	for _, n := range d.GetRoots() {
-		pending.Enqueue(n.(Block))
+	var prePlanBlocks, otherBlocks []Block
+	for _, v := range d.GetRoots() {
+		b := v.(Block)
+		if _, ok := b.(PrePlanBlock); ok {
+			prePlanBlocks = append(prePlanBlocks, b)
+			continue
+		}
+		otherBlocks = append(otherBlocks, b)
+	}
+	for _, b := range prePlanBlocks {
+		pending.Enqueue(b)
+	}
+	for _, b := range otherBlocks {
+		pending.Enqueue(b)
 	}
 	for !pending.Empty() {
 		next, _ := pending.Dequeue()

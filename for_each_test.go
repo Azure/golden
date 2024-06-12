@@ -1,6 +1,7 @@
 package golden
 
 import (
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -47,6 +48,28 @@ func (s *forEachTestSuite) TestForEachBlockWithAttributeThatHasDefaultValue() {
 		data := b.(*DummyData)
 		s.Equal("default_value", data.AttributeWithDefaultValue)
 	}
+}
+
+func (s *forEachTestSuite) TestForEachBlockInvolvingVariable() {
+	// The order of blocks is crucial here. The block with the variable must be defined first
+	config := `
+data "dummy" "sample" {
+	for_each = var.numbers
+}
+
+variable "numbers" {
+	type = set(number)
+}
+`
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": config,
+	})
+	c, err := BuildDummyConfig("", "", []CliFlagAssignedVariables{
+		NewCliFlagAssignedVariable("numbers", "[1]"),
+	}, nil)
+	require.NoError(s.T(), err)
+	_, err = RunDummyPlan(c)
+	s.NoError(err)
 }
 
 func (s *forEachTestSuite) TestLocals_locals_as_for_each() {
