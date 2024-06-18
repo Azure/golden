@@ -17,7 +17,7 @@ var configFs = afero.NewOsFs()
 
 type NewBaseConfigArgs struct {
 	Basedir                  string
-	VarConfigDir             string
+	VarConfigDir             *string
 	Ctx                      context.Context
 	DslAbbreviation          string
 	DslFullName              string
@@ -70,7 +70,7 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 }
 
 func NewBasicConfigFromArgs(a NewBaseConfigArgs) *BaseConfig {
-	c := NewBasicConfig(a.Basedir, a.DslFullName, a.DslAbbreviation, &a.VarConfigDir, a.CliFlagAssignedVariables, a.Ctx)
+	c := NewBasicConfig(a.Basedir, a.DslFullName, a.DslAbbreviation, a.VarConfigDir, a.CliFlagAssignedVariables, a.Ctx)
 	c.ignoreUnknownVariables = a.IgnoreUnknownVariables
 	return c
 }
