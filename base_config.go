@@ -15,6 +15,16 @@ import (
 
 var configFs = afero.NewOsFs()
 
+type NewBaseConfigArgs struct {
+	Basedir                  string
+	VarConfigDir             string
+	Ctx                      context.Context
+	DslAbbreviation          string
+	DslFullName              string
+	IgnoreUnknownVariables   bool
+	CliFlagAssignedVariables []CliFlagAssignedVariables
+}
+
 type BaseConfig struct {
 	ctx                      context.Context
 	basedir                  string
@@ -26,6 +36,7 @@ type BaseConfig struct {
 	cliFlagAssignedVariables []CliFlagAssignedVariables
 	inputVariables           map[string]VariableValueRead
 	inputVariableReadsLoader *sync.Once
+	ignoreUnknownVariables   bool
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -58,6 +69,12 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	return ctx
 }
 
+func NewBasicConfigFromArgs(a NewBaseConfigArgs) *BaseConfig {
+	c := NewBasicConfig(a.Basedir, a.DslFullName, a.DslAbbreviation, &a.VarConfigDir, a.CliFlagAssignedVariables, a.Ctx)
+	c.ignoreUnknownVariables = a.IgnoreUnknownVariables
+	return c
+}
+
 func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, varConfigDir *string, cliFlagAssignedVariables []CliFlagAssignedVariables, ctx context.Context) *BaseConfig {
 	if ctx == nil {
 		ctx = context.Background()
@@ -66,12 +83,12 @@ func NewBasicConfig(basedir, dslFullName, dslAbbreviation string, varConfigDir *
 		basedir:                  basedir,
 		varConfigDir:             varConfigDir,
 		ctx:                      ctx,
-		d:                        newDag(),
 		dslAbbreviation:          dslAbbreviation,
 		dslFullName:              dslFullName,
-		rawBlockAddresses:        make(map[string]struct{}),
 		cliFlagAssignedVariables: cliFlagAssignedVariables,
+		d:                        newDag(),
 		inputVariableReadsLoader: &sync.Once{},
+		rawBlockAddresses:        make(map[string]struct{}),
 	}
 	return c
 }

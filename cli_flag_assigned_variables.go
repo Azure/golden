@@ -33,6 +33,9 @@ func (v CliFlagAssignedVariable) Variables(c *BaseConfig) (map[string]VariableVa
 	}
 	vb, ok := variables[v.varName]
 	if !ok {
+		if c.ignoreUnknownVariables {
+			return map[string]VariableValueRead{}, nil
+		}
 		return nil, fmt.Errorf(`a variable named "%s" was assigned on the command line, but cannot find a variable of that name. To use this value, add a "variable" block to the configuraion`, v.varName)
 	}
 	read := vb.parseVariableValueFromString(v.rawValue, false)
