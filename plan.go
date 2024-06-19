@@ -35,7 +35,7 @@ func dagPlan(b Block) error {
 		if execErr != nil {
 			return fmt.Errorf("%s.%s.%s(%s) exec error: %+v", b.Type(), b.Type(), b.Name(), b.HclBlock().Range().String(), execErr)
 		}
-		b.markReady()
 	}
+	b.markReady()
 	return nil
 }

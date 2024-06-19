@@ -7,4 +7,6 @@ func init() {
 	RegisterBaseBlock(func() BlockType { return new(BaseResource) })
 	RegisterBlock(new(DummyData))
 	RegisterBlock(new(DummyResource))
+	RegisterBlock(new(PureApplyBlock))
+	RegisterBlock(new(PureApplyBlock2))
 }

@@ -103,6 +103,70 @@ func (d *DummyResource) Apply() error {
 	return nil
 }
 
+var _ ApplyBlock = &PureApplyBlock{}
+var _ CustomDecode = &PureApplyBlock{}
+
+type PureApplyBlock struct {
+	*BaseBlock
+}
+
+func (p *PureApplyBlock) Decode(block *HclBlock, context *hcl.EvalContext) error {
+	return nil
+}
+
+func (p *PureApplyBlock) Type() string {
+	return "one"
+}
+
+func (p *PureApplyBlock) BlockType() string {
+	return "pure_apply"
+}
+
+func (p *PureApplyBlock) AddressLength() int {
+	return 3
+}
+
+func (p *PureApplyBlock) CanExecutePrePlan() bool {
+	return false
+}
+
+func (p *PureApplyBlock) Apply() error {
+	return nil
+}
+
+var _ ApplyBlock = &PureApplyBlock2{}
+var _ CustomDecode = &PureApplyBlock2{}
+
+type PureApplyBlock2 struct {
+	*BaseBlock
+	decoded bool
+}
+
+func (p *PureApplyBlock2) Decode(block *HclBlock, context *hcl.EvalContext) error {
+	p.decoded = true
+	return nil
+}
+
+func (p *PureApplyBlock2) Type() string {
+	return "two"
+}
+
+func (p *PureApplyBlock2) BlockType() string {
+	return "pure_apply"
+}
+
+func (p *PureApplyBlock2) AddressLength() int {
+	return 3
+}
+
+func (p *PureApplyBlock2) CanExecutePrePlan() bool {
+	return false
+}
+
+func (p *PureApplyBlock2) Apply() error {
+	return nil
+}
+
 type blockTestSuite struct {
 	suite.Suite
 	*testBase
@@ -434,6 +498,35 @@ func TestBlockToString(t *testing.T) {
 			assert.Equal(t, c.expected, actual)
 		})
 	}
+}
+
+func TestPureApplyBlockDependOnPureApplyBlock(t *testing.T) {
+	code := `
+    pure_apply "one" this {
+	}
+
+	pure_apply "two" this {
+	  depends_on = [pure_apply.one.this]
+	}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	_, err = RunDummyPlan(config)
+	require.NoError(t, err)
+	for _, b := range config.GetVertices() {
+		if pb, ok := b.(*PureApplyBlock2); ok {
+			assert.True(t, pb.decoded)
+			return
+		}
+	}
+	t.Fatal("should got PureApplyBlock2")
 }
 
 type fakeBlock struct {
