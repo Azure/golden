@@ -8,7 +8,7 @@ require (
 	github.com/go-playground/validator/v10 v10.21.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hashicorp/hcl/v2 v2.20.1
+	github.com/hashicorp/hcl/v2 v2.21.0
 	github.com/heimdalr/dag v1.4.0
 	github.com/lonegunmanb/go-defaults v1.4.0
 	github.com/lonegunmanb/hclfuncs v0.8.0
