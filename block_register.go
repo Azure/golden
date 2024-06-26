@@ -27,14 +27,18 @@ func RegisterBaseBlock(factory func() BlockType) {
 
 func RegisterBlock(t Block) {
 	bt := t.BlockType()
+	refKeyWord := bt
+	if s, ok := t.(BlockCustomizedRefType); ok {
+		refKeyWord = s.CustomizedRefType()
+	}
 	registry, ok := factories[bt]
 	if !ok {
 		registry = make(blockRegistry)
 		factories[bt] = registry
 	}
-	_, ok = refIters[bt]
+	_, ok = refIters[refKeyWord]
 	if !ok {
-		refIters[bt] = iterator(bt, t.AddressLength())
+		refIters[refKeyWord] = iterator(refKeyWord, t.AddressLength())
 	}
 	validBlockTypes.Add(bt)
 	registry[t.Type()] = func(c Config, hb *HclBlock) Block {

@@ -57,6 +57,10 @@ func (v *VariableBlock) CustomizedRefType() string {
 	return "var"
 }
 
+func (v *VariableBlock) Address() string {
+	return fmt.Sprintf("var.%s", v.Name())
+}
+
 func (v *VariableBlock) AddressLength() int {
 	return 2
 }

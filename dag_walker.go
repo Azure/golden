@@ -36,6 +36,9 @@ func (d dagWalker) Enter(node hclsyntax.Node) hcl.Diagnostics {
 					if err != nil {
 						continue
 					}
+					if src == dest {
+						continue
+					}
 
 					if _, edgeExist := dests[dest]; !edgeExist {
 						err := d.dag.addEdge(src, dest)

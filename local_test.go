@@ -49,6 +49,26 @@ locals {
 	s.True(AreCtyValuesEqual(cty.ListVal([]cty.Value{cty.StringVal("2"), cty.StringVal("4")}), locals[2].(*LocalBlock).LocalValue))
 }
 
+func (s *localSuite) TestReferenceVariableInLocals() {
+	code := `
+locals {
+  a = var.z
+}
+
+variable "z" {
+  type = string
+  default = "hello"
+}
+`
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": code,
+	})
+	c, err := BuildDummyConfig("/", "", nil, nil)
+	s.NoError(err)
+	_, err = RunDummyPlan(c)
+	s.NoError(err)
+}
+
 func AreCtyValuesEqual(val1, val2 cty.Value) bool {
 	// Check if types are equal
 	if !val1.Type().Equals(val2.Type()) {
