@@ -88,7 +88,8 @@ var _ TestResource = &DummyResource{}
 type DummyResource struct {
 	*BaseBlock
 	*BaseResource
-	Tags map[string]string `json:"tags" hcl:"tags,optional"`
+	Tags         map[string]string   `json:"tags" hcl:"tags,optional"`
+	NestedBlocks []SecondNestedBlock `hcl:"nested_block,block"`
 }
 
 func (d *DummyResource) Type() string {
@@ -498,6 +499,30 @@ func TestBlockToString(t *testing.T) {
 			assert.Equal(t, c.expected, actual)
 		})
 	}
+}
+
+func TestMultipleInstanceDataBlockWithNestedBlock(t *testing.T) {
+	code := `data "dummy" this {
+    for_each = toset([1,2])
+	dynamic "top_nested_block" {
+		for_each = range(each.value)
+		content {
+        	name = "name${top_nested_block.value}"
+        }
+	}
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	_, err = RunDummyPlan(config)
+	require.NoError(t, err)
 }
 
 func TestPureApplyBlockDependOnPureApplyBlock(t *testing.T) {
