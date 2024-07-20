@@ -88,9 +88,32 @@ func GoTypeToCtyType(goType reflect.Type) cty.Type {
 	case reflect.Map:
 		valueType := GoTypeToCtyType(goType.Elem())
 		return cty.Map(valueType)
+	case reflect.Struct:
+		return StructToCtyType(goType)
 	default:
 		return cty.NilType
 	}
+}
+
+func StructToCtyType(typ reflect.Type) cty.Type {
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+	if typ.Kind() != reflect.Struct {
+		return cty.NilType
+	}
+	attrs := make(map[string]cty.Type)
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		fieldName, ok := fieldName(field)
+		if !ok {
+			continue
+		}
+		fieldType := field.Type
+		ctyType := GoTypeToCtyType(fieldType)
+		attrs[fieldName] = ctyType
+	}
+	return cty.Object(attrs)
 }
 
 func Int(i int) *int {
