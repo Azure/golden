@@ -298,7 +298,7 @@ func Values[T Block](blocks []T) cty.Value {
 func blockToCtyValue(b Block) cty.Value {
 	blockValues := map[string]cty.Value{}
 	baseCtyValues := b.BaseValues()
-	ctyValues := Value(b) //.Values()
+	ctyValues := Value(b)
 	for k, v := range ctyValues {
 		blockValues[k] = v
 	}

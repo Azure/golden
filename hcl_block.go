@@ -25,7 +25,7 @@ func NewHclBlock(rb *hclsyntax.Block, wb *hclwrite.Block, each *ForEach) *HclBlo
 		hb.attributes[n] = NewHclAttribute(ra, wb.Body().Attributes()[n])
 	}
 	for i, nrb := range rb.Body.Blocks {
-		hb.blocks = append(hb.blocks, NewHclBlock(nrb, wb.Body().Blocks()[i] /*TODO: dynamic support in the future*/, nil))
+		hb.blocks = append(hb.blocks, NewHclBlock(nrb, wb.Body().Blocks()[i], nil))
 	}
 	return hb
 }
