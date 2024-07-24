@@ -69,13 +69,15 @@ func Decode(b Block) error {
 			return err
 		}
 	}
-	diag := gohcl.DecodeBody(cleanBodyForDecode(hb.Body), evalContext, b)
-	if diag.HasErrors() {
-		return diag
-	}
-	err := decodeDynamicNestedBlock(b, b.HclBlock().Block, evalContext)
+
+	expandedHb, err := hb.ExpandDynamicBlocks(evalContext)
 	if err != nil {
 		return err
+	}
+
+	diag := gohcl.DecodeBody(cleanBodyForDecode(expandedHb.Body), evalContext, b)
+	if diag.HasErrors() {
+		return diag
 	}
 	// we need set defaults again, since gohcl.DecodeBody might erase default value set on those attribute has null values.
 	defaults.SetDefaults(b)
@@ -118,10 +120,17 @@ func verifyDependsOn(b Block) error {
 	return nil
 }
 
-func decodeDynamicNestedBlock(b any, block *hclsyntax.Block, evalContext *hcl.EvalContext) error {
+func decodeDynamicNestedBlock(b any, bb *hclsyntax.Block, evalContext *hcl.EvalContext) error {
 	// Iterate over the blocks in the HCL block
-	for _, block := range block.Body.Blocks {
+	for _, block := range bb.Body.Blocks {
 		if block.Type != "dynamic" {
+			field, ok := getFieldByTag(reflect.ValueOf(b).Elem(), block.Type)
+			if !ok {
+				return fmt.Errorf("no such field: %s in block", block.Type)
+			}
+			if err := decodeDynamicNestedBlock(field.Interface(), block, evalContext); err != nil {
+				return err
+			}
 			continue
 		}
 		forEachAttr, ok := block.Body.Attributes["for_each"]
@@ -136,13 +145,17 @@ func decodeDynamicNestedBlock(b any, block *hclsyntax.Block, evalContext *hcl.Ev
 			return fmt.Errorf("incorrect type for `for_each`, must be collection")
 		}
 
-		// Get the field in the parent block to append to
 		blockType := block.Labels[0]
-		parentField, ok := getFieldByTag(reflect.ValueOf(b).Elem(), blockType)
-		if !ok {
-			return fmt.Errorf("no such field: %s in block", blockType)
+		var parentField reflect.Value
+		if reflect.ValueOf(b).Kind() == reflect.Slice {
+			parentField = reflect.ValueOf(b)
+		} else {
+			// Get the field in the parent block to append to
+			parentField, ok = getFieldByTag(reflect.ValueOf(b).Elem(), blockType)
+			if !ok {
+				return fmt.Errorf("no such field: %s in block", blockType)
+			}
 		}
-
 		// Ensure we're working with a slice
 		if parentField.Kind() != reflect.Slice {
 			return fmt.Errorf("field: %s is not a slice", blockType)
@@ -222,7 +235,10 @@ func cleanBodyForDecode(hb *hclsyntax.Body) *hclsyntax.Body {
 		if MetaNestedBlockNames.Contains(nb.Type) {
 			continue
 		}
-		newBody.Blocks = append(newBody.Blocks, nb)
+		cloneBody := *nb.Body
+		cloneNb := *nb
+		cloneNb.Body = cleanBodyForDecode(&cloneBody)
+		newBody.Blocks = append(newBody.Blocks, &cloneNb)
 	}
 
 	return newBody

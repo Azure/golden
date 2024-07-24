@@ -452,6 +452,41 @@ func Test_NestedBlock_DynamicInsideDynamic(t *testing.T) {
 	assert.Equal(t, 1, secondNesteBlock.Id)
 }
 
+func Test_NestedBlock_DynamicInsideStatic(t *testing.T) {
+	//t.Skip("skip now, to support dynamic inside static we need to rewrite Decode(b Block), expand dynamic before calling gohcl.Decode")
+	code := `data "dummy" this {
+	top_nested_block {
+      name = "hello"
+	  dynamic "second_nested_block" {
+		for_each = toset([1])
+		content {
+		  id = second_nested_block.value
+		  name = "hello"
+        }
+      }
+    }
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 1)
+	assert.Len(t, dataBlock.TopNestedBlocks[0].SecondNestedBlocks, 1)
+	secondNesteBlock := dataBlock.TopNestedBlocks[0].SecondNestedBlocks[0]
+	assert.Equal(t, "hello", secondNesteBlock.Name)
+	assert.Equal(t, 1, secondNesteBlock.Id)
+}
+
 func Test_LocalBlocksValueShouldBeAFlattenObject(t *testing.T) {
 	numberVal := cty.NumberVal(big.NewFloat(1))
 	stringVal := cty.StringVal("hello world")
