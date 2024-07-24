@@ -66,9 +66,8 @@ func AsHclBlocks(syntaxBlocks hclsyntax.Blocks, writeBlocks []*hclwrite.Block) [
 
 func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock, error) {
 	newHb := &HclBlock{
-		//Block:      newHclSyntaxBlock,
 		Block:      hb.Block,
-		wb:         clone(hb.wb),
+		wb:         hb.wb,
 		ForEach:    hb.ForEach,
 		attributes: hb.attributes,
 		blocks:     []*HclBlock{},
@@ -78,6 +77,9 @@ func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock
 		if block.Type != "dynamic" {
 			expandedBlock, err := block.ExpandDynamicBlocks(evalContext)
 			if err != nil {
+				return nil, err
+			}
+			if err = expandedBlock.evaluateAttributes(evalContext); err != nil {
 				return nil, err
 			}
 			newHb.blocks = append(newHb.blocks, expandedBlock)
@@ -120,18 +122,8 @@ func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock
 					return nil, err
 				}
 				expandedInnerBlock.Type = block.Labels[0]
-				for attributeName, attribute := range expandedInnerBlock.Body.Attributes {
-					v, diag := attribute.Expr.Value(newContext)
-					if diag.HasErrors() {
-						return nil, diag
-					}
-					expandedInnerBlock.Body.Attributes[attributeName] = &hclsyntax.Attribute{
-						Name: attributeName,
-						Expr: &hclsyntax.LiteralValueExpr{
-							Val: v,
-						},
-						SrcRange: attribute.SrcRange,
-					}
+				if err = expandedInnerBlock.evaluateAttributes(newContext); err != nil {
+					return nil, err
 				}
 				newHb.blocks = append(newHb.blocks, expandedInnerBlock)
 				newNestedBlocks = append(newNestedBlocks, expandedInnerBlock.Block)
@@ -254,4 +246,21 @@ func CloneHclSyntaxBlock(hb *hclsyntax.Block) *hclsyntax.Block {
 	cloneBlock.Body = cloneBody
 
 	return cloneBlock
+}
+
+func (hb *HclBlock) evaluateAttributes(ctx *hcl.EvalContext) error {
+	for attributeName, attribute := range hb.Body.Attributes {
+		v, diag := attribute.Expr.Value(ctx)
+		if diag.HasErrors() {
+			return diag
+		}
+		hb.Body.Attributes[attributeName] = &hclsyntax.Attribute{
+			Name: attributeName,
+			Expr: &hclsyntax.LiteralValueExpr{
+				Val: v,
+			},
+			SrcRange: attribute.SrcRange,
+		}
+	}
+	return nil
 }
