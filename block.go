@@ -147,25 +147,6 @@ func cleanBodyForDecode(hb *hclsyntax.Body) *hclsyntax.Body {
 	return newBody
 }
 
-func bodyWithDynamicNestedBlocks(hb *hclsyntax.Body) *hclsyntax.Body {
-	newBody := &hclsyntax.Body{
-		Attributes: make(hclsyntax.Attributes),
-	}
-
-	// Iterate over the attributes of the original body
-	for attrName, attr := range hb.Attributes {
-		newBody.Attributes[attrName] = attr
-	}
-
-	for _, nb := range hb.Blocks {
-		if nb.Type != "dynamic" {
-			newBody.Blocks = append(newBody.Blocks, nb)
-		}
-	}
-
-	return newBody
-}
-
 func SingleValues(blocks []SingleValueBlock) cty.Value {
 	if len(blocks) == 0 {
 		return cty.EmptyObjectVal
