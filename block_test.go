@@ -63,7 +63,12 @@ type TopNestedBlock struct {
 }
 
 type SecondNestedBlock struct {
-	Id   int    `hcl:"id"`
+	Id                int                `hcl:"id"`
+	Name              string             `hcl:"name"`
+	ThirdNestedBlocks []ThirdNestedBlock `hcl:"third_nested_block,block"`
+}
+
+type ThirdNestedBlock struct {
 	Name string `hcl:"name"`
 }
 
@@ -383,7 +388,7 @@ func Test_NestedBlock_DynamicAndNonDynamic(t *testing.T) {
 	assert.Equal(t, "world", dataBlock.TopNestedBlocks[1].Name)
 }
 
-func Test_NestedBlock_DynamicWithMultipleElementes(t *testing.T) {
+func Test_NestedBlock_DynamicWithMultipleElements(t *testing.T) {
 	code := `data "dummy" this {
 	dynamic "top_nested_block" {
       for_each = toset(["hello", "world"])
@@ -453,7 +458,6 @@ func Test_NestedBlock_DynamicInsideDynamic(t *testing.T) {
 }
 
 func Test_NestedBlock_DynamicInsideStatic(t *testing.T) {
-	//t.Skip("skip now, to support dynamic inside static we need to rewrite Decode(b Block), expand dynamic before calling gohcl.Decode")
 	code := `data "dummy" this {
 	top_nested_block {
       name = "hello"
@@ -485,6 +489,65 @@ func Test_NestedBlock_DynamicInsideStatic(t *testing.T) {
 	secondNesteBlock := dataBlock.TopNestedBlocks[0].SecondNestedBlocks[0]
 	assert.Equal(t, "hello", secondNesteBlock.Name)
 	assert.Equal(t, 1, secondNesteBlock.Id)
+}
+
+func Test_NestedBlock_DeepMixedStaticAndDynamic(t *testing.T) {
+	code := `data "dummy" this {
+	top_nested_block {
+      name = "hello"
+	  dynamic "second_nested_block" {
+		for_each = toset([1])
+		content {
+		  id = second_nested_block.value
+		  name = "second_nested_block0"
+          third_nested_block {
+            name = second_nested_block.value
+          }
+        }
+      }
+      second_nested_block {
+        id = 2
+        name = "world"
+        dynamic "third_nested_block" {
+          for_each = [1,2]
+          content {
+			name = "world${third_nested_block.value}"
+		  }
+        }
+      }
+    }
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["data.dummy.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	dataBlock := block.(*DummyData)
+	assert.Len(t, dataBlock.TopNestedBlocks, 1)
+	topNestedBlock := dataBlock.TopNestedBlocks[0]
+	assert.Equal(t, "hello", topNestedBlock.Name)
+
+	assert.Len(t, topNestedBlock.SecondNestedBlocks, 2)
+	secondNestedBlock0 := topNestedBlock.SecondNestedBlocks[0]
+	assert.Equal(t, 1, secondNestedBlock0.Id)
+	assert.Equal(t, "second_nested_block0", secondNestedBlock0.Name)
+	assert.Len(t, secondNestedBlock0.ThirdNestedBlocks, 1)
+	assert.Equal(t, "1", secondNestedBlock0.ThirdNestedBlocks[0].Name)
+
+	secondNestedBlock1 := topNestedBlock.SecondNestedBlocks[1]
+	assert.Equal(t, 2, secondNestedBlock1.Id)
+	assert.Equal(t, "world", secondNestedBlock1.Name)
+	assert.Len(t, secondNestedBlock1.ThirdNestedBlocks, 2)
+	assert.Equal(t, "world1", secondNestedBlock1.ThirdNestedBlocks[0].Name)
+	assert.Equal(t, "world2", secondNestedBlock1.ThirdNestedBlocks[1].Name)
 }
 
 func Test_LocalBlocksValueShouldBeAFlattenObject(t *testing.T) {
