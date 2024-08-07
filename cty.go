@@ -143,7 +143,8 @@ func CtyValueToString(val cty.Value) string {
 				strs = append(strs, CtyValueToString(v))
 			}
 			return "[" + strings.Join(strs, ", ") + "]"
-		} else if val.Type().IsMapType() || val.Type().IsObjectType() {
+		}
+		if val.Type().IsMapType() || val.Type().IsObjectType() {
 			strs := make([]string, 0, val.LengthInt())
 			it := val.ElementIterator()
 			for it.Next() {
@@ -151,10 +152,9 @@ func CtyValueToString(val cty.Value) string {
 				strs = append(strs, fmt.Sprintf("%s: %s", k.AsString(), CtyValueToString(v)))
 			}
 			return "{" + strings.Join(strs, ", ") + "}"
-		} else {
-			// For other types, use the GoString method, which will give a
-			// string representation of the internal structure of the value.
-			return val.GoString()
 		}
+		// For other types, use the GoString method, which will give a
+		// string representation of the internal structure of the value.
+		return val.GoString()
 	}
 }
