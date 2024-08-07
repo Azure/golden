@@ -1,6 +1,7 @@
 package golden
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -191,24 +192,85 @@ func (s *blockTestSuite) TearDownTest() {
 }
 
 func (s *blockTestSuite) Test_DependsOn() {
-	code := `data "dummy" this {
+	cases := []struct {
+		desc     string
+		tfConfig string
+	}{
+		{
+			desc: "simple case",
+			tfConfig: `data "dummy" this {
 }
 
   resource "dummy" this {
   depends_on = [data.dummy.this]
-}`
-	s.dummyFsWithFiles(map[string]string{
-		"test.hcl": code,
-	})
-	t := s.T()
-	config, err := BuildDummyConfig("", "", nil, nil)
-	require.NoError(t, err)
-	_, err = RunDummyPlan(config)
-	require.NoError(t, err)
-	children, err := config.GetChildren("data.dummy.this")
-	require.NoError(t, err)
-	_, ok := children["resource.dummy.this"]
-	s.True(ok)
+}`,
+		},
+		{
+			desc: "with white space",
+			tfConfig: `data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = [ data.dummy.this ]
+}`,
+		},
+		{
+			desc: "with tab",
+			tfConfig: fmt.Sprintf(`data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = [%sdata.dummy.this%s]
+}`, "\t", "\t"),
+		},
+		{
+			desc: "with new line",
+			tfConfig: fmt.Sprintf(`data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = [%sdata.dummy.this,%s]
+}`, "\n", "\r\n"),
+		},
+		{
+			desc: "multiple items mixed with tab, white space, new line",
+			tfConfig: fmt.Sprintf(`data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = [%sdata.dummy.this,%s]
+}`, "\n\t ", " \t\r\n"),
+		},
+		{
+			desc: "multiple items with new line",
+			tfConfig: `data "dummy" this {
+}
+
+  resource "dummy" this {
+  depends_on = [
+    data.dummy.this,
+    data.dummy.this,
+  ]
+}`,
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.tfConfig,
+			})
+			t := s.T()
+			config, err := BuildDummyConfig("", "", nil, nil)
+			require.NoError(t, err)
+			_, err = RunDummyPlan(config)
+			require.NoError(t, err)
+			children, err := config.GetChildren("data.dummy.this")
+			require.NoError(t, err)
+			_, ok := children["resource.dummy.this"]
+			s.True(ok)
+
+		})
+	}
 }
 
 func (s *blockTestSuite) Test_DependsOnMustBeListOfBlockAddress() {

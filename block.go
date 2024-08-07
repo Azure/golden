@@ -113,6 +113,10 @@ func verifyDependsOn(b Block) error {
 	}
 	elements := strings.Split(strings.TrimSuffix(strings.TrimPrefix(exprString, "["), "]"), ",")
 	for _, element := range elements {
+		element = strings.Trim(element, " \t\r\n")
+		if element == "" {
+			continue
+		}
 		if !b.Config().ValidBlockAddress(element) {
 			return fmt.Errorf("`depends_on` must be a list of block address, invalid address: %s", element)
 		}
