@@ -335,6 +335,10 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	return expandedBlocks, c.d.DeleteVertex(address)
 }
 
+func Traverse[T Block](c *BaseConfig, walker func(b T) error) error {
+	return traverse(c.d, walker)
+}
+
 func merge[TK, TV comparable](maps ...map[TK]TV) map[TK]TV {
 	r := make(map[TK]TV)
 	for _, m := range maps {

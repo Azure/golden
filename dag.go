@@ -2,6 +2,7 @@ package golden
 
 import (
 	"github.com/emirpasic/gods/queues/linkedlistqueue"
+	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/heimdalr/dag"
@@ -116,6 +117,36 @@ func (d *Dag) runDag(c Config, onReady func(Block) error) error {
 		}
 		for _, n := range children {
 			pending.Enqueue(n)
+		}
+	}
+	return err
+}
+
+func traverse[T Block](d *Dag, f func(b T) error) error {
+	var err error
+	pending := linkedlistqueue.New()
+	visited := hashset.New()
+	for _, i := range d.GetRoots() {
+		pending.Enqueue(i)
+	}
+	for !pending.Empty() {
+		next, _ := pending.Dequeue()
+		if visited.Contains(next) {
+			continue
+		}
+		visited.Add(next)
+		nb := next.(Block)
+		if b, ok := nb.(T); ok {
+			if subError := f(b); subError != nil {
+				err = multierror.Append(err, subError)
+			}
+		}
+		children, getChildrenErr := d.GetChildren(nb.Address())
+		if getChildrenErr != nil {
+			return getChildrenErr
+		}
+		for _, c := range children {
+			pending.Enqueue(c)
 		}
 	}
 	return err

@@ -89,6 +89,55 @@ func (s *dagSuite) TestDag_DagBlocksShouldBeConnectedWithEdgeIfThereIsReferenceB
 	assertEdge(t, dag, "resource.dummy.foo", "resource.dummy.bar")
 }
 
+func (s *dagSuite) TestDag_TraverseDag() {
+	t := s.T()
+	content := `
+	data "dummy" foo {
+	    data = {
+			key = "value"
+		}
+    }
+
+	resource "dummy" foo {
+	  tags = data.dummy.foo.data
+	}  
+	resource "dummy" bar {
+      tags = merge(data.dummy.foo.data, resource.dummy.foo.tags)
+	}
+
+    resource "dummy" foobar {
+      depends_on = [resource.dummy.foo, resource.dummy.bar]
+    }
+	`
+
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	dag := newDag()
+	require.NoError(t, dag.buildDag(blocks(config)))
+	visited := make(map[string]struct{})
+	require.NoError(t, traverse[*DummyResource](dag, func(b *DummyResource) error {
+		_, ok := visited[b.name]
+		require.False(t, ok)
+		visited[b.name] = struct{}{}
+		if b.name == "foobar" {
+			_, ok = visited["foo"]
+			require.True(t, ok)
+			_, ok = visited["bar"]
+			require.True(t, ok)
+		}
+		return nil
+	}))
+	s.Equal(map[string]struct{}{
+		"foo":    {},
+		"bar":    {},
+		"foobar": {},
+	}, visited)
+}
+
 func (s *dagSuite) TestDag_CycleDependencyShouldCauseError() {
 	content := `
 	data "dummy" sample {
