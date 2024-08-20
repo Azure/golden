@@ -70,6 +70,9 @@ func (v *VariableBlock) CanExecutePrePlan() bool {
 }
 
 func (v *VariableBlock) Value() cty.Value {
+	if v.variableValue == nil {
+		return cty.NilVal
+	}
 	return *v.variableValue
 }
 

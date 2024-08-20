@@ -382,6 +382,24 @@ func (s *variableSuite) TestExecuteBeforePlan_Validation() {
 	}
 }
 
+func (s *variableSuite) TestExecuteBeforePlan_LocalWithVariable() {
+	cfg := `locals {
+              a = "a"
+            }
+            variable "test" {
+                type = bool
+  				default = true
+			}
+`
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": cfg,
+	})
+	c, err := BuildDummyConfig("/", "", nil, nil)
+	s.NoError(err)
+	s.Equal(cty.StringVal("a"), c.GetVertices()["local.a"].(*LocalBlock).LocalValue)
+	s.Equal(cty.True, *c.GetVertices()["var.test"].(*VariableBlock).variableValue)
+}
+
 var _ variableValuePromoter = &mockVariableValuePromoter{}
 
 type mockVariableValuePromoter struct {
