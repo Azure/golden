@@ -368,3 +368,42 @@ func (s *configSuite) TestParseConfigWithVariable() {
 		"key": "hello",
 	}, dummyData.Tags)
 }
+
+func (s *configSuite) TestExpandableApplyBlockWithZeroLengthShouldNotBlockDownstreamBlocksBeingEvaluated() {
+	content := `
+	locals {
+		foo = "bar"
+    }
+
+	resource "dummy" foobar {
+	    for_each = []
+		tags = {
+		  foo = local.foo
+		}
+	}
+
+	resource "dummy" bar {
+        for_each = []
+		tags = {}
+		depends_on = [resource.dummy.foobar]
+	}
+
+    resource "dummy" foo {
+        for_each = []
+		tags = {}
+        depends_on = [resource.dummy.bar]
+	}
+	`
+
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": content,
+	})
+	t := s.T()
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	_, err = RunDummyPlan(config)
+	require.NoError(t, err)
+	resources := Blocks[TestResource](config)
+	s.Empty(resources)
+}
