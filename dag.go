@@ -70,7 +70,7 @@ func (d *Dag) runDag(c Config, onReady func(Block) error) error {
 		if !exist {
 			continue
 		}
-		ancestors, dagErr := d.GetAncestors(address)
+		ancestors, dagErr := d.GetParents(address)
 		if dagErr != nil {
 			return dagErr
 		}
@@ -89,6 +89,10 @@ func (d *Dag) runDag(c Config, onReady func(Block) error) error {
 			continue
 		}
 		if b.expandable() {
+			children, dagErr := d.GetChildren(address)
+			if dagErr != nil {
+				return dagErr
+			}
 			expandedBlocks, err := c.expandBlock(b)
 			if err != nil {
 				return err
@@ -99,6 +103,9 @@ func (d *Dag) runDag(c Config, onReady func(Block) error) error {
 			}
 			for _, b := range pending.Values() {
 				newPending.Enqueue(b)
+			}
+			for _, n := range children {
+				newPending.Enqueue(n)
 			}
 			pending = newPending
 			continue
