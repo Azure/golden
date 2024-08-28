@@ -141,14 +141,31 @@ func traverse[T Block](d *Dag, f func(b T) error) error {
 		if visited.Contains(next) {
 			continue
 		}
-		visited.Add(next)
 		nb := next.(Block)
+		address := nb.Address()
+		parents, err := d.GetParents(address)
+		if err != nil {
+			return err
+		}
+		ready := true
+		for _, p := range parents {
+			if !visited.Contains(p) {
+				ready = false
+				break
+			}
+		}
+		if !ready {
+			pending.Enqueue(next)
+			continue
+		}
+
+		visited.Add(next)
 		if b, ok := nb.(T); ok {
 			if subError := f(b); subError != nil {
 				err = multierror.Append(err, subError)
 			}
 		}
-		children, getChildrenErr := d.GetChildren(nb.Address())
+		children, getChildrenErr := d.GetChildren(address)
 		if getChildrenErr != nil {
 			return getChildrenErr
 		}
