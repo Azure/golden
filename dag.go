@@ -143,9 +143,9 @@ func traverse[T Block](d *Dag, f func(b T) error) error {
 		}
 		nb := next.(Block)
 		address := nb.Address()
-		parents, err := d.GetParents(address)
-		if err != nil {
-			return err
+		parents, parentErr := d.GetParents(address)
+		if parentErr != nil {
+			return parentErr
 		}
 		ready := true
 		for _, p := range parents {
