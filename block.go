@@ -189,7 +189,7 @@ func Values[T Block](blocks []T) cty.Value {
 				nm = make(map[string]cty.Value)
 			}
 			nm[CtyValueToString(forEach.key)] = blockVal
-			values[b.Name()] = cty.MapVal(nm)
+			values[b.Name()] = cty.ObjectVal(nm)
 		}
 		valuesMap[b.Type()] = values
 	}

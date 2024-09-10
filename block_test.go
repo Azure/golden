@@ -174,6 +174,50 @@ func (p *PureApplyBlock2) Apply() error {
 	return nil
 }
 
+var _ Block = &DummyResourceBlock2{}
+
+type DummyResourceBlock2 struct {
+	*BaseBlock
+	*BaseResource
+	Value cty.Value `hcl:"value,optional"`
+}
+
+func (d DummyResourceBlock2) Type() string {
+	return "dummy2"
+}
+
+func TestValues_DifferentTypesBlocksWithForEach(t *testing.T) {
+	r1 := &DummyResourceBlock2{
+		BaseBlock: &BaseBlock{
+			name:         "this",
+			blockAddress: "resource.dummy2.this",
+			forEach: &ForEach{
+				key:   cty.StringVal("this"),
+				value: cty.StringVal("this"),
+			},
+			hasExpanded:  true,
+			readyForRead: true,
+		},
+		BaseResource: &BaseResource{},
+		Value:        cty.True,
+	}
+	r2 := &DummyResourceBlock2{
+		BaseBlock: &BaseBlock{
+			name:         "this",
+			blockAddress: "resource.dummy2.this",
+			forEach: &ForEach{
+				key:   cty.StringVal("this2"),
+				value: cty.StringVal("this2"),
+			},
+			hasExpanded:  true,
+			readyForRead: true,
+		},
+		BaseResource: &BaseResource{},
+		Value:        cty.NilVal,
+	}
+	Values([]Block{r1, r2})
+}
+
 type blockTestSuite struct {
 	suite.Suite
 	*testBase
