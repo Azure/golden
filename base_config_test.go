@@ -1,9 +1,11 @@
 package golden
 
 import (
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 	"testing"
 )
 
@@ -476,4 +478,39 @@ string_value = "world"
 			}
 		})
 	}
+}
+
+func TestBaseConfig_OverrideFunctions(t *testing.T) {
+	// Define a custom function
+	customFunc := function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "input",
+				Type: cty.String,
+			},
+		},
+		Type: function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			input := args[0].AsString()
+			return cty.StringVal("Hello, " + input), nil
+		},
+	})
+
+	// Create a new BaseConfig with the custom function in OverrideFunctions
+	overrideFunctions := map[string]function.Function{
+		"customFunc": customFunc,
+	}
+	config := NewBasicConfig("/", "dslFullName", "dslAbbreviation", nil, nil, nil)
+	config.OverrideFunctions = overrideFunctions
+
+	// Get the evaluation context
+	evalContext := config.EmptyEvalContext()
+
+	// Verify that the custom function is included in the evaluation context
+	assert.Contains(t, evalContext.Functions, "customFunc")
+
+	// Test the custom function
+	result, err := evalContext.Functions["customFunc"].Call([]cty.Value{cty.StringVal("World")})
+	require.NoError(t, err)
+	assert.Equal(t, cty.StringVal("Hello, World"), result)
 }

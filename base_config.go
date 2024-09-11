@@ -3,6 +3,7 @@ package golden
 import (
 	"context"
 	"fmt"
+	"github.com/zclconf/go-cty/cty/function"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -37,6 +38,7 @@ type BaseConfig struct {
 	inputVariables           map[string]VariableValueRead
 	inputVariableReadsLoader *sync.Once
 	ignoreUnknownVariables   bool
+	OverrideFunctions        map[string]function.Function
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -48,7 +50,7 @@ func (c *BaseConfig) DslAbbreviation() string { return c.dslAbbreviation }
 
 func (c *BaseConfig) EmptyEvalContext() *hcl.EvalContext {
 	return &hcl.EvalContext{
-		Functions: hclfuncs.Functions(c.basedir),
+		Functions: merge(hclfuncs.Functions(c.basedir), c.OverrideFunctions),
 		Variables: make(map[string]cty.Value),
 	}
 }
