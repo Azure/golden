@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/heimdalr/dag v1.5.0
 	github.com/lonegunmanb/go-defaults v1.4.0
-	github.com/lonegunmanb/hclfuncs v0.9.0
+	github.com/lonegunmanb/hclfuncs v0.10.0
 	github.com/prashantv/gostub v1.1.0
 	github.com/spf13/afero v1.11.0
 	github.com/stretchr/testify v1.10.0
@@ -64,7 +64,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/timandy/routine v1.1.4 // indirect
-	github.com/zclconf/go-cty-yaml v1.0.3 // indirect
+	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
 	golang.org/x/mod v0.17.0 // indirect
