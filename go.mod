@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/heimdalr/dag v1.5.0
 	github.com/lonegunmanb/go-defaults v1.4.0
-	github.com/lonegunmanb/hclfuncs v0.10.0
+	github.com/lonegunmanb/hclfuncs v0.11.0
 	github.com/prashantv/gostub v1.1.0
 	github.com/spf13/afero v1.11.0
 	github.com/stretchr/testify v1.10.0
