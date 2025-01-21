@@ -6,7 +6,7 @@ Golden assumes a DSL engine which is composited by Plan phase and Apply phase, j
 
 It supports two block interfaces: [`PlanBlock`](./plan_block.go) and [`ApplyBlock`](./apply_block.go), you can implement your own block type, in Terraform, there are `data`, `resource`, `local`, `variable`, `output`. In `grept`, there are `data`, `rule`, `fix`, `local`.
 
-Golden has implemented `local` block, and `variable` support is in our roadmap.
+Golden has implemented `local` block.
 
 Golden has implemented support for `for_each` and `precondition` in blocks.
 
