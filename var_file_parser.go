@@ -54,12 +54,12 @@ type varFileParserImpl struct {
 }
 
 func (h varFileParserImpl) ParseFile(content []byte, fileName string) (*hcl.File, error) {
-	hclParser := hclFileParser{dslAbbreviation: h.dslAbbreviation} //nolint:gosimple
+	hclParser := hclFileParser{dslAbbreviation: h.dslAbbreviation} //nolint:gosimple,staticcheck
 	file, err := hclParser.ParseFile(content, fileName)
 	if file != nil || err != nil {
 		return file, err
 	}
-	jsonParser := jsonFileParser{dslAbbreviation: h.dslAbbreviation} //nolint:gosimple
+	jsonParser := jsonFileParser{dslAbbreviation: h.dslAbbreviation} //nolint:gosimple,staticcheck
 	file, err = jsonParser.ParseFile(content, fileName)
 	if file != nil || err != nil {
 		return file, err

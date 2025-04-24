@@ -232,11 +232,11 @@ func blockAddress(b *HclBlock) string {
 		return ""
 	}
 	sb := strings.Builder{}
-	sb.WriteString(b.Block.Type)
+	sb.WriteString(b.Type)
 	sb.WriteString(".")
-	sb.WriteString(concatLabels(b.Block.Labels))
+	sb.WriteString(concatLabels(b.Labels))
 	if b.ForEach != nil {
-		sb.WriteString(fmt.Sprintf("[%s]", CtyValueToString(b.ForEach.key)))
+		sb.WriteString(fmt.Sprintf("[%s]", CtyValueToString(b.key)))
 	}
 	return sb.String()
 }
