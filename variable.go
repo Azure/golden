@@ -123,7 +123,7 @@ func (v *VariableBlock) parseVariableType() error {
 }
 
 func (v *VariableBlock) readValue() (VariableValueRead, error) {
-	variables, err := v.BaseBlock.c.readInputVariables()
+	variables, err := v.c.readInputVariables()
 	if err != nil {
 		return NoValue, err
 	}
@@ -179,17 +179,17 @@ func (v *VariableBlock) parseVariableValueFromString(rawValue string, treatEmpty
 func (v *VariableBlock) readFromPromote() (VariableValueRead, error) {
 	promoterMutex.Lock()
 	defer promoterMutex.Unlock()
-	valuePromoter.printf("var.%s\n", v.Name())
+	_, _ = valuePromoter.printf("var.%s\n", v.Name())
 	if v.Description != nil {
-		valuePromoter.printf("  %s\n\n", *v.Description)
+		_, _ = valuePromoter.printf("  %s\n\n", *v.Description)
 	}
-	valuePromoter.printf("  Enter a value: ")
+	_, _ = valuePromoter.printf("  Enter a value: ")
 	var in string
 	_, err := valuePromoter.scanln(&in)
 	if err != nil {
 		return NoValue, err
 	}
-	valuePromoter.printf("\n")
+	_, _ = valuePromoter.printf("\n")
 	return v.parseVariableValueFromString(in, false), nil
 }
 

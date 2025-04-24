@@ -141,7 +141,7 @@ func (bb *BaseBlock) getForEach() *ForEach {
 }
 
 func (bb *BaseBlock) setMetaNestedBlock() {
-	for _, nb := range bb.hb.Block.Body.Blocks {
+	for _, nb := range bb.hb.Body.Blocks {
 		if nb.Type == "precondition" {
 			bb.preConditions = append(bb.preConditions, PreCondition{
 				Body: nb.Body,
