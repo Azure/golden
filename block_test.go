@@ -186,6 +186,29 @@ func (d DummyResourceBlock2) Type() string {
 	return "dummy2"
 }
 
+var _ Block = &DummyRootBlock{}
+
+type DummyRootBlock struct {
+	*BaseBlock
+	Value cty.Value `hcl:"value,optional"`
+}
+
+func (d *DummyRootBlock) Type() string {
+	return ""
+}
+
+func (d *DummyRootBlock) BlockType() string {
+	return "dummy_root"
+}
+
+func (d *DummyRootBlock) AddressLength() int {
+	return 2
+}
+
+func (d *DummyRootBlock) CanExecutePrePlan() bool {
+	return false
+}
+
 func TestValues_DifferentTypesBlocksWithForEach(t *testing.T) {
 	r1 := &DummyResourceBlock2{
 		BaseBlock: &BaseBlock{
@@ -756,6 +779,27 @@ func TestPureApplyBlockDependOnPureApplyBlock(t *testing.T) {
 		}
 	}
 	t.Fatal("should got PureApplyBlock2")
+}
+
+func Test_RootBlock(t *testing.T) {
+	code := `dummy_root this {
+	value = "hello world"
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	block := config.GetVertices()["dummy_root.this"].(Block)
+	err = Decode(block)
+	require.NoError(t, err)
+	rootBlock := block.(*DummyRootBlock)
+	assert.Equal(t, "hello world", rootBlock.Value.AsString())
 }
 
 type fakeBlock struct {

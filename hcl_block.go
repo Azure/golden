@@ -175,6 +175,18 @@ func readRawHclSyntaxBlock(b *hclsyntax.Block) []*hclsyntax.Block {
 			}
 		}
 	default:
+		if block, ok := blockSamples[b.Type]; ok && block.Type() == "" {
+			b = &hclsyntax.Block{
+				Type:            b.Type,
+				Labels:          append([]string{""}, b.Labels...),
+				Body:            b.Body,
+				TypeRange:       b.TypeRange,
+				LabelRanges:     b.LabelRanges,
+				OpenBraceRange:  b.OpenBraceRange,
+				CloseBraceRange: b.CloseBraceRange,
+			}
+		}
+
 		return []*hclsyntax.Block{b}
 	}
 }

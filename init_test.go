@@ -9,4 +9,5 @@ func init() {
 	RegisterBlock(new(DummyResource))
 	RegisterBlock(new(PureApplyBlock))
 	RegisterBlock(new(PureApplyBlock2))
+	RegisterBlock(new(DummyRootBlock))
 }

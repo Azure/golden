@@ -1,8 +1,6 @@
 package golden
 
 import (
-	"github.com/emirpasic/gods/sets"
-	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/lonegunmanb/go-defaults"
 	"reflect"
 
@@ -13,10 +11,10 @@ import (
 type blockConstructor = func(Config, *HclBlock) Block
 type blockRegistry map[string]blockConstructor
 
-var validBlockTypes sets.Set = hashset.New()
 var refIters = map[string]refIterator{}
 
 var baseFactory = map[string]func() any{}
+var blockSamples = map[string]Block{}
 
 func RegisterBaseBlock(factory func() BlockType) {
 	bb := factory()
@@ -40,7 +38,7 @@ func RegisterBlock(t Block) {
 	if !ok {
 		refIters[refKeyWord] = iterator(refKeyWord, t.AddressLength())
 	}
-	validBlockTypes.Add(bt)
+	blockSamples[bt] = t
 	registry[t.Type()] = func(c Config, hb *HclBlock) Block {
 		newBlock := reflect.New(reflect.TypeOf(t).Elem()).Elem()
 		newBaseBlock := NewBaseBlock(c, hb)
@@ -58,7 +56,8 @@ func RegisterBlock(t Block) {
 }
 
 func IsBlockTypeWanted(bt string) bool {
-	return validBlockTypes.Contains(bt)
+	_, ok := blockSamples[bt]
+	return ok
 }
 
 func registerCommonBlock() {
