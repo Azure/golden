@@ -10,4 +10,10 @@ func init() {
 	RegisterBlock(new(PureApplyBlock))
 	RegisterBlock(new(PureApplyBlock2))
 	RegisterBlock(new(DummyRootBlock))
+	RegisterBlock(new(SelfRefRootBlock))
+	RegisterCustomGoTypeMapping()
+}
+
+func RegisterCustomGoTypeMapping() {
+	AddCustomTypeMapping[*SelfRefBlock](new(SelfRefBlock).customCtyType(100))
 }
