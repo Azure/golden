@@ -8,6 +8,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+var customTypeMapping = make(map[reflect.Type]cty.Type)
+
+func AddCustomTypeMapping[T any](customType cty.Type) {
+	var t T
+	customTypeMapping[reflect.TypeOf(t)] = customType
+}
+
 // ToCtyValue is a function that converts a primary/collection type to cty.Value
 func ToCtyValue(input any) cty.Value {
 	if v, isCtyValue := input.(cty.Value); isCtyValue {
@@ -70,6 +77,9 @@ func ToCtyValue(input any) cty.Value {
 func GoTypeToCtyType(goType reflect.Type) cty.Type {
 	if goType == nil {
 		return cty.NilType
+	}
+	if customType, ok := customTypeMapping[goType]; ok {
+		return customType
 	}
 	switch goType.Kind() {
 	case reflect.Bool:
