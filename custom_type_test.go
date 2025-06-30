@@ -116,11 +116,11 @@ self_ref that {
     dynamic "sub_block" {
 		for_each = ["1"]
 		content {
-			name = "sub${sub_block.key}"
+			name = "sub${sub_block.value}"
 			dynamic "sub_block" {
 				for_each = ["2"]
 				content {
-					name = "sub${sub_block.key}"
+					name = "sub${sub_block.value}"
 				}
 			}
 		}
@@ -132,7 +132,7 @@ self_ref that {
     dynamic "sub_block" {
 		for_each = ["1"]
 		content {
-			name = "sub${sub_block.key}"
+			name = "sub${sub_block.value}"
 		}
 	}
 }

@@ -1,6 +1,9 @@
 package golden
 
 import (
+	"github.com/prashantv/gostub"
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -51,4 +54,32 @@ func TestNewHclBlock(t *testing.T) {
 	assert.Equal(t, "nested", nb.Type)
 	assert.Equal(t, 1, len(nb.Attributes()))
 	assert.NotNil(t, nb.Attributes()["attr3"])
+}
+
+func TestDynamicBlock_iteratorKey(t *testing.T) {
+	code := `resource "dummy" this {
+	dynamic "nested_block" {
+		for_each = { id = 1 }
+		content {
+			id = nested_block.value
+			name = "test-${nested_block.key}"
+		}
+    }
+}
+`
+	mockFs := afero.NewMemMapFs()
+	stub := gostub.Stub(&testFsFactory, func() afero.Fs {
+		return mockFs
+	})
+	defer stub.Reset()
+	_ = afero.WriteFile(mockFs, "test.hcl", []byte(code), 0644)
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(t, err)
+	_, err = RunDummyPlan(config)
+	require.NoError(t, err)
+	rootBlock := Blocks[*DummyResource](config)[0]
+	assert.Len(t, rootBlock.NestedBlocks, 1)
+	assert.Equal(t, 1, rootBlock.NestedBlocks[0].Id)
+	assert.Equal(t, "test-id", rootBlock.NestedBlocks[0].Name)
 }

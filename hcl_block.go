@@ -103,10 +103,11 @@ func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock
 
 		iterator := forEachValue.ElementIterator()
 		for iterator.Next() {
-			_, value := iterator.Element()
+			key, value := iterator.Element()
 			newContext := evalContext.NewChild()
 			newContext.Variables = map[string]cty.Value{
 				block.Labels[0]: cty.ObjectVal(map[string]cty.Value{
+					"key":   key,
 					"value": value,
 				}),
 			}
