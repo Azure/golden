@@ -1,8 +1,6 @@
 module github.com/Azure/golden
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.25
 
 require (
 	github.com/ahmetb/go-linq/v3 v3.2.0
@@ -17,7 +15,7 @@ require (
 	github.com/prashantv/gostub v1.1.0
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
-	github.com/zclconf/go-cty v1.17.0
+	github.com/zclconf/go-cty v1.18.0
 	golang.org/x/text v0.34.0
 )
 
