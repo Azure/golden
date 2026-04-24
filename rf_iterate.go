@@ -37,7 +37,7 @@ func iterator(keyword string, addressLength int) refIterator {
 		if len(ts) > i+addressLength+1 {
 			index, ok := ts[i+addressLength].(hcl.TraverseIndex)
 			if ok {
-				sb.WriteString(fmt.Sprintf(`[%s]`, CtyValueToString(index.Key)))
+				fmt.Fprintf(&sb, `[%s]`, CtyValueToString(index.Key))
 				r = append(r, sb.String())
 			}
 		}
