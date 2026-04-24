@@ -236,7 +236,7 @@ func blockAddress(b *HclBlock) string {
 	sb.WriteString(".")
 	sb.WriteString(concatLabels(b.Labels))
 	if b.ForEach != nil {
-		sb.WriteString(fmt.Sprintf("[%s]", CtyValueToString(b.key)))
+		fmt.Fprintf(&sb, "[%s]", CtyValueToString(b.key))
 	}
 	return sb.String()
 }

@@ -408,7 +408,7 @@ type mockVariableValuePromoter struct {
 }
 
 func (m *mockVariableValuePromoter) printf(format string, a ...any) (n int, err error) {
-	return m.sb.WriteString(fmt.Sprintf(format, a...))
+	return fmt.Fprintf(&m.sb, format, a...)
 }
 
 func (m *mockVariableValuePromoter) scanln(a ...any) (n int, err error) {
