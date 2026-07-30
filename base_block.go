@@ -24,7 +24,7 @@ type BaseBlock struct {
 
 func NewBaseBlock(c Config, hb *HclBlock) *BaseBlock {
 	n := ""
-	if hb != nil {
+	if hb != nil && len(hb.Labels) > 1 {
 		n = hb.Labels[1]
 	}
 	bb := &BaseBlock{

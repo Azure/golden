@@ -78,7 +78,51 @@ func wrapBlock(c Config, hb *HclBlock) (Block, error) {
 	if !ok {
 		return nil, fmt.Errorf("unregistered %s: %s", hb.Type, blockType)
 	}
+	if diags := validateBlockLabels(hb, blockType); diags.HasErrors() {
+		return nil, diags
+	}
 	return f(c, hb), nil
+}
+
+func validateBlockLabels(hb *HclBlock, blockType string) hcl.Diagnostics {
+	const expectedLabelCount = 2
+	if len(hb.Labels) == expectedLabelCount {
+		return nil
+	}
+
+	blockDescription := fmt.Sprintf("%q", hb.Type)
+	expectedSyntax := fmt.Sprintf("%s \"NAME\" {\n  ...\n}", hb.Type)
+	if blockType != "" {
+		blockDescription = fmt.Sprintf("%s %q", hb.Type, blockType)
+		expectedSyntax = fmt.Sprintf("%s %q \"NAME\" {\n  ...\n}", hb.Type, blockType)
+	}
+
+	if len(hb.Labels) < expectedLabelCount {
+		return hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Missing %s block name", hb.Type),
+			Detail: fmt.Sprintf("The %s block requires a name label. Add a name to the block declaration, for example:\n\n%s",
+				blockDescription, expectedSyntax),
+			Subject: hb.TypeRange.Ptr(),
+		}}
+	}
+
+	extraLabel := hb.Labels[expectedLabelCount]
+	extraLabelRangeIndex := expectedLabelCount
+	if blockType == "" {
+		extraLabelRangeIndex--
+	}
+	subject := hb.TypeRange.Ptr()
+	if extraLabelRangeIndex < len(hb.LabelRanges) {
+		subject = hb.LabelRanges[extraLabelRangeIndex].Ptr()
+	}
+	return hcl.Diagnostics{&hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  fmt.Sprintf("Extraneous label for %s block", hb.Type),
+		Detail: fmt.Sprintf("The %s block accepts no labels after its name. Remove the extra %q label. Expected syntax:\n\n%s",
+			blockDescription, extraLabel, expectedSyntax),
+		Subject: subject,
+	}}
 }
 
 func blocks(c directedAcyclicGraph) []Block {

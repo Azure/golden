@@ -202,6 +202,95 @@ func (s *configSuite) TestInvalidBlockType() {
 	assert.Contains(t, err.Error(), expectedError)
 }
 
+func TestRegisteredBlockLabelValidation(t *testing.T) {
+	tests := []struct {
+		name            string
+		config          string
+		expectedSummary string
+		expectedDetail  string
+		expectedSyntax  string
+	}{
+		{
+			name: "variable missing name",
+			config: `variable {
+  default = "hello"
+}`,
+			expectedSummary: "Missing variable block name",
+			expectedDetail:  `The "variable" block requires a name label`,
+			expectedSyntax:  `variable "NAME" {`,
+		},
+		{
+			name: "variable with extra label",
+			config: `variable "environment" "unexpected" {
+  default = "prod"
+}`,
+			expectedSummary: "Extraneous label for variable block",
+			expectedDetail:  `Remove the extra "unexpected" label`,
+			expectedSyntax:  `variable "NAME" {`,
+		},
+		{
+			name:            "typed block missing name",
+			config:          `data "dummy" {}`,
+			expectedSummary: "Missing data block name",
+			expectedDetail:  `The data "dummy" block requires a name label`,
+			expectedSyntax:  `data "dummy" "NAME" {`,
+		},
+		{
+			name:            "typed block with extra label",
+			config:          `data "dummy" "sample" "unexpected" {}`,
+			expectedSummary: "Extraneous label for data block",
+			expectedDetail:  `Remove the extra "unexpected" label`,
+			expectedSyntax:  `data "dummy" "NAME" {`,
+		},
+		{
+			name:            "root block missing name",
+			config:          `dummy_root {}`,
+			expectedSummary: "Missing dummy_root block name",
+			expectedDetail:  `The "dummy_root" block requires a name label`,
+			expectedSyntax:  `dummy_root "NAME" {`,
+		},
+		{
+			name:            "root block with extra label",
+			config:          `dummy_root "sample" "unexpected" {}`,
+			expectedSummary: "Extraneous label for dummy_root block",
+			expectedDetail:  `Remove the extra "unexpected" label`,
+			expectedSyntax:  `dummy_root "NAME" {`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testBase := newTestBase()
+			defer testBase.teardown()
+			testBase.dummyFsWithFiles(map[string]string{"test.hcl": test.config})
+
+			var err error
+			require.NotPanics(t, func() {
+				_, err = BuildDummyConfig("", "", nil, nil)
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), test.expectedSummary)
+			assert.Contains(t, err.Error(), test.expectedDetail)
+			assert.Contains(t, err.Error(), test.expectedSyntax)
+			assert.Contains(t, err.Error(), "test.hcl:1")
+		})
+	}
+}
+
+func TestNewBaseBlockWithoutNameIsBoundsSafe(t *testing.T) {
+	hclBlock := &HclBlock{Block: &hclsyntax.Block{
+		Type:   "variable",
+		Labels: []string{""},
+	}}
+
+	var block *BaseBlock
+	require.NotPanics(t, func() {
+		block = NewBaseBlock(nil, hclBlock)
+	})
+	require.NotNil(t, block)
+	assert.Empty(t, block.Name())
+}
+
 func (s *configSuite) TestFunctionInEvalContext() {
 	t := s.T()
 	configStr := `
