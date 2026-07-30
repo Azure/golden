@@ -293,8 +293,8 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	if diag.HasErrors() {
 		return nil, diag
 	}
-	if !forEachValue.CanIterateElements() {
-		return nil, fmt.Errorf("invalid `for_each`, except set or map: %s", attr.Range().String())
+	if err := validateForEachCollectionType(forEachValue, attr.Range()); err != nil {
+		return nil, err
 	}
 	address := b.Address()
 	upstreams, err := c.d.GetAncestors(address)
@@ -335,6 +335,22 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	}
 	b.markExpanded()
 	return expandedBlocks, c.d.DeleteVertex(address)
+}
+
+func validateForEachCollectionType(value cty.Value, sourceRange hcl.Range) error {
+	valueType := value.Type()
+	if valueType.IsMapType() || valueType.IsObjectType() {
+		return nil
+	}
+	if valueType.IsSetType() {
+		if valueType.ElementType() == cty.String {
+			return nil
+		}
+		if !value.IsNull() && value.IsKnown() && value.LengthInt() == 0 {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid `for_each`; must be a map or set of strings, got %s: %s", valueType.FriendlyName(), sourceRange.String())
 }
 
 func Traverse[T Block](c *BaseConfig, walker func(b T) error) error {

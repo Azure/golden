@@ -730,7 +730,7 @@ func TestBlockToString(t *testing.T) {
 
 func TestMultipleInstanceDataBlockWithNestedBlock(t *testing.T) {
 	code := `data "dummy" this {
-    for_each = toset([1,2])
+    for_each = { "1" = 1, "2" = 2 }
 	dynamic "top_nested_block" {
 		for_each = range(each.value)
 		content {

@@ -1,6 +1,7 @@
 package golden
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -34,7 +35,7 @@ func (s *forEachTestSuite) TearDownSubTest() {
 func (s *forEachTestSuite) TestForEachBlockWithAttributeThatHasDefaultValue() {
 	config := `	
 	data "dummy" "sample" {
-		for_each = toset([1,2,3])
+		for_each = toset(["1","2","3"])
 	}
 `
 	s.dummyFsWithFiles(map[string]string{
@@ -63,7 +64,7 @@ data "dummy" "sample" {
 }
 
 variable "numbers" {
-	type = set(number)
+	type = set(string)
 }
 `,
 			desc: "without_validation",
@@ -76,7 +77,7 @@ data "dummy" "sample" {
 }
 
 variable "numbers" {
-	type = set(number)
+	type = set(string)
 	validation {
 		condition = length(var.numbers) > 0
 		error_message = "numbers must not be empty"
@@ -96,7 +97,7 @@ variable "dummy" {
 				"test.hcl": c.config,
 			})
 			c, err := BuildDummyConfig("", "", []CliFlagAssignedVariables{
-				NewCliFlagAssignedVariable("numbers", "[1]"),
+				NewCliFlagAssignedVariable("numbers", `["1"]`),
 			}, nil)
 			require.NoError(s.T(), err)
 			_, err = RunDummyPlan(c)
@@ -108,7 +109,7 @@ variable "dummy" {
 func (s *forEachTestSuite) TestLocals_locals_as_for_each() {
 	code := `
 locals {
-  numbers = toset([1,2,3])
+  numbers = toset(["1","2","3"])
 }
 
 data "dummy" foo {
@@ -147,4 +148,44 @@ resource "dummy" bar {
 	p, err := RunDummyPlan(c)
 	s.NoError(err)
 	s.Len(p.Resources, 3)
+}
+
+func (s *forEachTestSuite) TestForEachCollectionTypes() {
+	tests := []struct {
+		name          string
+		forEach       string
+		wantInstances int
+		wantError     bool
+	}{
+		{name: "map", forEach: `tomap({ a = "one", b = "two" })`, wantInstances: 2},
+		{name: "object", forEach: `{ a = 1, b = true }`, wantInstances: 2},
+		{name: "set of strings", forEach: `toset(["a", "b"])`, wantInstances: 2},
+		{name: "empty map", forEach: `tomap({})`},
+		{name: "empty object", forEach: `{}`},
+		{name: "empty set", forEach: `toset([])`},
+		{name: "list", forEach: `tolist(["a", "b"])`, wantError: true},
+		{name: "tuple", forEach: `["a", "b"]`, wantError: true},
+		{name: "empty tuple", forEach: `[]`, wantError: true},
+		{name: "set of numbers", forEach: `toset([1, 2])`, wantError: true},
+	}
+
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": fmt.Sprintf(`
+data "dummy" "sample" {
+  for_each = %s
+}
+`, test.forEach),
+			})
+
+			config, err := BuildDummyConfig("", "", nil, nil)
+			if test.wantError {
+				s.ErrorContains(err, "must be a map or set of strings")
+				return
+			}
+			s.NoError(err)
+			s.Len(Blocks[TestData](config), test.wantInstances)
+		})
+	}
 }

@@ -245,7 +245,7 @@ locals {
 func (s *configSuite) TestForEach_ForEachBlockShouldBeExpanded() {
 	hclConfig := `
 	locals {
-		items = ["item1", "item2", "item3"]
+		items = toset(["item1", "item2", "item3"])
 	}
 
 	data "dummy" "foo" {
@@ -302,7 +302,7 @@ func (s *configSuite) TestForEach_forEachAsToggle() {
     }
 
     data "dummy" sample {
-        for_each = false ? locals.items : []
+        for_each = false ? local.items : toset([])
     }
     `
 	s.dummyFsWithFiles(map[string]string{
@@ -376,20 +376,20 @@ func (s *configSuite) TestExpandableApplyBlockWithZeroLengthShouldNotBlockDownst
     }
 
 	resource "dummy" foobar {
-	    for_each = []
+	    for_each = {}
 		tags = {
 		  foo = local.foo
 		}
 	}
 
 	resource "dummy" bar {
-        for_each = []
+        for_each = {}
 		tags = {}
 		depends_on = [resource.dummy.foobar]
 	}
 
     resource "dummy" foo {
-        for_each = []
+        for_each = {}
 		tags = {}
         depends_on = [resource.dummy.bar]
 	}
