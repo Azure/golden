@@ -297,6 +297,9 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 		return nil, fmt.Errorf("invalid `for_each`, except set or map: %s", attr.Range().String())
 	}
 	address := b.Address()
+	if diags := validateForEachValueAvailability(forEachValue, attr.Expr.Range()); diags.HasErrors() {
+		return nil, diags
+	}
 	upstreams, err := c.d.GetAncestors(address)
 	if err != nil {
 		return nil, err
