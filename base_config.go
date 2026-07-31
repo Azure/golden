@@ -28,6 +28,7 @@ type NewBaseConfigArgs struct {
 
 type BaseConfig struct {
 	ctx                      context.Context
+	configOwner              Config
 	basedir                  string
 	varConfigDir             *string
 	d                        *Dag
@@ -41,6 +42,9 @@ type BaseConfig struct {
 	// Empty expansions leave the DAG but still need an addressable evaluation namespace.
 	emptyForEachBlocks map[string]Block
 	OverrideFunctions  map[string]function.Function
+	parallelRunMu      sync.RWMutex
+	parallelRunActive  bool
+	parallelRunning    map[string]struct{}
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -79,6 +83,48 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 		ctx.Variables[bt] = valuesWithEmptyForEach(bs, emptyForEachBlocks)
 	}
 	return ctx
+}
+
+func (c *BaseConfig) setConfigOwner(config Config) {
+	c.configOwner = config
+}
+
+func (c *BaseConfig) beginParallelRun() {
+	c.parallelRunMu.Lock()
+	defer c.parallelRunMu.Unlock()
+	c.parallelRunActive = true
+	c.parallelRunning = make(map[string]struct{})
+}
+
+func (c *BaseConfig) endParallelRun() {
+	c.parallelRunMu.Lock()
+	defer c.parallelRunMu.Unlock()
+	c.parallelRunActive = false
+	c.parallelRunning = nil
+}
+
+func (c *BaseConfig) markParallelRunning(address string) {
+	c.parallelRunMu.Lock()
+	defer c.parallelRunMu.Unlock()
+	c.parallelRunning[address] = struct{}{}
+}
+
+func (c *BaseConfig) markParallelCompleted(address string) {
+	c.parallelRunMu.Lock()
+	defer c.parallelRunMu.Unlock()
+	delete(c.parallelRunning, address)
+}
+
+func (c *BaseConfig) blockAvailableInEvalContext(b Block) bool {
+	c.parallelRunMu.RLock()
+	defer c.parallelRunMu.RUnlock()
+	if !c.parallelRunActive {
+		return true
+	}
+	if _, running := c.parallelRunning[b.Address()]; running {
+		return false
+	}
+	return b.isReadyForRead()
 }
 
 func NewBasicConfigFromArgs(a NewBaseConfigArgs) *BaseConfig {
@@ -276,6 +322,9 @@ func (c *BaseConfig) variableConfigFilesDir() string {
 func (c *BaseConfig) blocksByTypes() map[string][]Block {
 	r := make(map[string][]Block)
 	for _, b := range blocks(c) {
+		if !c.blockAvailableInEvalContext(b) {
+			continue
+		}
 		bt := b.BlockType()
 		r[bt] = append(r[bt], b)
 	}
@@ -308,7 +357,11 @@ func (c *BaseConfig) buildDag(blocks []Block) error {
 }
 
 func (c *BaseConfig) runDag(onReady func(Block) error) error {
-	return c.d.runDag(c, onReady)
+	config := Config(c)
+	if c.configOwner != nil {
+		config = c.configOwner
+	}
+	return c.d.runDag(config, onReady)
 }
 
 func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {

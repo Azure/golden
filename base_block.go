@@ -2,6 +2,8 @@ package golden
 
 import (
 	"context"
+	"sync"
+
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2"
@@ -20,6 +22,7 @@ type BaseBlock struct {
 	hasExpanded   bool
 	readyForRead  bool
 	preConditions []PreCondition
+	stateMu       sync.RWMutex
 }
 
 func NewBaseBlock(c Config, hb *HclBlock) *BaseBlock {
@@ -151,17 +154,25 @@ func (bb *BaseBlock) setMetaNestedBlock() {
 }
 
 func (bb *BaseBlock) markExpanded() {
+	bb.stateMu.Lock()
+	defer bb.stateMu.Unlock()
 	bb.hasExpanded = true
 }
 
 func (bb *BaseBlock) expandable() bool {
+	bb.stateMu.RLock()
+	defer bb.stateMu.RUnlock()
 	return bb.forEachDefined() && !bb.hasExpanded
 }
 
 func (bb *BaseBlock) markReady() {
+	bb.stateMu.Lock()
+	defer bb.stateMu.Unlock()
 	bb.readyForRead = true
 }
 
 func (bb *BaseBlock) isReadyForRead() bool {
+	bb.stateMu.RLock()
+	defer bb.stateMu.RUnlock()
 	return bb.readyForRead
 }

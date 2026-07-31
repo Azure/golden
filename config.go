@@ -29,6 +29,10 @@ type Config interface {
 	expandBlock(b Block) ([]Block, error)
 }
 
+type configOwnerSetter interface {
+	setConfigOwner(Config)
+}
+
 func Blocks[T Block](c directedAcyclicGraph) []T {
 	var r []T
 	for _, b := range c.GetVertices() {
@@ -42,6 +46,9 @@ func Blocks[T Block](c directedAcyclicGraph) []T {
 
 func InitConfig(config Config, hclBlocks []*HclBlock) error {
 	var err error
+	if setter, ok := config.(configOwnerSetter); ok {
+		setter.setConfigOwner(config)
+	}
 
 	var blocks []Block
 	for _, hb := range hclBlocks {

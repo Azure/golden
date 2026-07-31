@@ -1,6 +1,8 @@
 package golden
 
 import (
+	"fmt"
+
 	"github.com/emirpasic/gods/queues/linkedlistqueue"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/hashicorp/go-multierror"
@@ -44,6 +46,13 @@ func (d *Dag) addEdge(from, to string) error {
 }
 
 func (d *Dag) runDag(c Config, onReady func(Block) error) error {
+	if parallel, ok := c.(Parallelism); ok {
+		return d.runDagOnParallel(c, parallel.Parallelism(), onReady)
+	}
+	return d.runDagSerial(c, onReady)
+}
+
+func (d *Dag) runDagSerial(c Config, onReady func(Block) error) error {
 	var err error
 	pending := linkedlistqueue.New()
 	var prePlanBlocks, otherBlocks []Block
@@ -127,6 +136,227 @@ func (d *Dag) runDag(c Config, onReady func(Block) error) error {
 		}
 	}
 	return err
+}
+
+type parallelRunState interface {
+	beginParallelRun()
+	endParallelRun()
+	markParallelRunning(address string)
+	markParallelCompleted(address string)
+}
+
+type parallelBlockStatus uint8
+
+const (
+	parallelBlockQueued parallelBlockStatus = iota + 1
+	parallelBlockRunning
+	parallelBlockSucceeded
+	parallelBlockBlocked
+)
+
+type parallelBlockResult struct {
+	block Block
+	err   error
+}
+
+func (d *Dag) runDagOnParallel(c Config, parallelism int, onReady func(Block) error) error {
+	if parallelism <= 0 {
+		return fmt.Errorf("parallelism must be greater than zero, got %d", parallelism)
+	}
+
+	state, tracksParallelRun := c.(parallelRunState)
+	if tracksParallelRun {
+		state.beginParallelRun()
+		defer state.endParallelRun()
+	}
+
+	statuses := make(map[string]parallelBlockStatus)
+	var pending []Block
+	enqueue := func(b Block) {
+		address := b.Address()
+		if _, exists := statuses[address]; exists {
+			return
+		}
+		statuses[address] = parallelBlockQueued
+		pending = append(pending, b)
+	}
+
+	var prePlanBlocks, otherBlocks []Block
+	for _, vertex := range d.GetRoots() {
+		b := vertex.(Block)
+		if _, ok := b.(PrePlanBlock); ok {
+			prePlanBlocks = append(prePlanBlocks, b)
+			continue
+		}
+		otherBlocks = append(otherBlocks, b)
+	}
+	for _, b := range prePlanBlocks {
+		enqueue(b)
+	}
+	for _, b := range otherBlocks {
+		enqueue(b)
+	}
+
+	results := make(chan parallelBlockResult, parallelism)
+	running := 0
+	var runErr error
+	var fatalErr error
+
+	removePending := func(index int) Block {
+		b := pending[index]
+		pending = append(pending[:index], pending[index+1:]...)
+		return b
+	}
+
+	enqueueChildren := func(address string) error {
+		if !d.exist(address) {
+			return nil
+		}
+		children, err := d.GetChildren(address)
+		if err != nil {
+			return err
+		}
+		for _, child := range children {
+			enqueue(child.(Block))
+		}
+		return nil
+	}
+
+	dependenciesReady := func(address string) (ready bool, blocked bool, err error) {
+		parents, err := d.GetParents(address)
+		if err != nil {
+			return false, false, err
+		}
+		ready = true
+		for parentAddress := range parents {
+			switch statuses[parentAddress] {
+			case parallelBlockSucceeded:
+				continue
+			case parallelBlockBlocked:
+				return false, true, nil
+			default:
+				ready = false
+			}
+		}
+		return ready, false, nil
+	}
+
+	handleResult := func(result parallelBlockResult) error {
+		running--
+		address := result.block.Address()
+		if tracksParallelRun {
+			state.markParallelCompleted(address)
+		}
+		if result.err != nil {
+			runErr = multierror.Append(runErr, result.err)
+			statuses[address] = parallelBlockBlocked
+		} else if result.block.isReadyForRead() {
+			statuses[address] = parallelBlockSucceeded
+		} else {
+			statuses[address] = parallelBlockBlocked
+		}
+		return enqueueChildren(address)
+	}
+	drainRunning := func() {
+		for running > 0 {
+			if err := handleResult(<-results); err != nil {
+				fatalErr = multierror.Append(fatalErr, err)
+			}
+		}
+	}
+
+	for len(pending) > 0 || running > 0 {
+		madeProgress := false
+
+		for index := 0; index < len(pending) && running < parallelism; {
+			b := pending[index]
+			address := b.Address()
+			if !d.exist(address) {
+				removePending(index)
+				statuses[address] = parallelBlockBlocked
+				madeProgress = true
+				continue
+			}
+
+			ready, blocked, err := dependenciesReady(address)
+			if err != nil {
+				fatalErr = multierror.Append(fatalErr, err)
+				break
+			}
+			if blocked {
+				removePending(index)
+				statuses[address] = parallelBlockBlocked
+				if err := enqueueChildren(address); err != nil {
+					fatalErr = multierror.Append(fatalErr, err)
+					break
+				}
+				madeProgress = true
+				continue
+			}
+			if !ready {
+				index++
+				continue
+			}
+
+			if b.expandable() {
+				// Expansion mutates the graph, so wait until callbacks stop reading it.
+				if running > 0 {
+					break
+				}
+				removePending(index)
+				children, err := d.GetChildren(address)
+				if err != nil {
+					fatalErr = multierror.Append(fatalErr, err)
+					break
+				}
+				expandedBlocks, err := c.expandBlock(b)
+				if err != nil {
+					fatalErr = multierror.Append(fatalErr, err)
+					break
+				}
+				statuses[address] = parallelBlockSucceeded
+				for _, expandedBlock := range expandedBlocks {
+					enqueue(expandedBlock)
+				}
+				for _, child := range children {
+					enqueue(child.(Block))
+				}
+				madeProgress = true
+				continue
+			}
+
+			removePending(index)
+			statuses[address] = parallelBlockRunning
+			if tracksParallelRun {
+				state.markParallelRunning(address)
+			}
+			running++
+			madeProgress = true
+			go func(block Block) {
+				results <- parallelBlockResult{block: block, err: onReady(block)}
+			}(b)
+		}
+
+		if fatalErr != nil {
+			drainRunning()
+			return multierror.Append(runErr, fatalErr)
+		}
+
+		if running > 0 {
+			if err := handleResult(<-results); err != nil {
+				fatalErr = multierror.Append(fatalErr, err)
+				drainRunning()
+				return multierror.Append(runErr, fatalErr)
+			}
+			continue
+		}
+
+		if len(pending) > 0 && !madeProgress {
+			return multierror.Append(runErr, fmt.Errorf("parallel DAG execution stalled with %d pending blocks", len(pending)))
+		}
+	}
+
+	return runErr
 }
 
 func traverse[T Block](d *Dag, f func(b T) error) error {
