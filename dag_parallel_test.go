@@ -28,7 +28,7 @@ func newParallelTestConfig(d *Dag, parallelism int) *parallelTestConfig {
 		parallelism: parallelism,
 	}
 	c.d = d
-	c.setConfigOwner(c)
+	c.setParallelism(&parallelism)
 	return c
 }
 
@@ -63,6 +63,30 @@ func waitForParallelCallbacks(t *testing.T, started <-chan string, count int) {
 			t.Fatalf("timed out waiting for %d parallel callbacks", count)
 		}
 	}
+}
+
+func TestInitConfigCachesParallelism(t *testing.T) {
+	c := &parallelTestConfig{
+		BaseConfig:  NewBasicConfig("", "test", "test", nil, nil, nil),
+		parallelism: 3,
+	}
+
+	require.NoError(t, InitConfig(c, nil))
+	require.NotNil(t, c.BaseConfig.parallelism)
+	assert.Equal(t, 3, *c.BaseConfig.parallelism)
+
+	c.parallelism = 1
+	assert.Equal(t, 3, *c.BaseConfig.parallelism)
+}
+
+func TestInitConfigLeavesParallelismUnsetWhenUnsupported(t *testing.T) {
+	baseConfig := NewBasicConfig("", "test", "test", nil, nil, nil)
+	staleParallelism := 3
+	baseConfig.setParallelism(&staleParallelism)
+	c := &DummyConfig{BaseConfig: baseConfig}
+
+	require.NoError(t, InitConfig(c, nil))
+	assert.Nil(t, c.parallelism)
 }
 
 func TestRunDagOnParallelHonorsParallelism(t *testing.T) {
@@ -233,7 +257,8 @@ resource "dummy" downstream {
 		parallelism: 4,
 	}
 	require.NoError(t, InitConfig(c, hclBlocks))
-	require.Same(t, c, c.configOwner)
+	require.NotNil(t, c.BaseConfig.parallelism)
+	require.Equal(t, 4, *c.BaseConfig.parallelism)
 	require.NoError(t, c.RunPlan())
 
 	resources := Blocks[TestResource](c)

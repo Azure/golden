@@ -28,7 +28,6 @@ type NewBaseConfigArgs struct {
 
 type BaseConfig struct {
 	ctx                      context.Context
-	configOwner              Config
 	basedir                  string
 	varConfigDir             *string
 	d                        *Dag
@@ -42,9 +41,11 @@ type BaseConfig struct {
 	// Empty expansions leave the DAG but still need an addressable evaluation namespace.
 	emptyForEachBlocks map[string]Block
 	OverrideFunctions  map[string]function.Function
-	parallelRunMu      sync.RWMutex
-	parallelRunActive  bool
-	parallelRunning    map[string]struct{}
+	// nil keeps the serial scheduler; non-nil values were explicitly provided by Parallelism.
+	parallelism       *int
+	parallelRunMu     sync.RWMutex
+	parallelRunActive bool
+	parallelRunning   map[string]struct{}
 }
 
 func (c *BaseConfig) Context() context.Context {
@@ -85,8 +86,8 @@ func (c *BaseConfig) EvalContext() *hcl.EvalContext {
 	return ctx
 }
 
-func (c *BaseConfig) setConfigOwner(config Config) {
-	c.configOwner = config
+func (c *BaseConfig) setParallelism(parallelism *int) {
+	c.parallelism = parallelism
 }
 
 func (c *BaseConfig) beginParallelRun() {
@@ -357,11 +358,10 @@ func (c *BaseConfig) buildDag(blocks []Block) error {
 }
 
 func (c *BaseConfig) runDag(onReady func(Block) error) error {
-	config := Config(c)
-	if c.configOwner != nil {
-		config = c.configOwner
+	if c.parallelism != nil {
+		return c.d.runDagOnParallel(c, *c.parallelism, onReady)
 	}
-	return c.d.runDag(config, onReady)
+	return c.d.runDagSerial(c, onReady)
 }
 
 func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {

@@ -29,8 +29,8 @@ type Config interface {
 	expandBlock(b Block) ([]Block, error)
 }
 
-type configOwnerSetter interface {
-	setConfigOwner(Config)
+type parallelismSetter interface {
+	setParallelism(*int)
 }
 
 func Blocks[T Block](c directedAcyclicGraph) []T {
@@ -46,8 +46,13 @@ func Blocks[T Block](c directedAcyclicGraph) []T {
 
 func InitConfig(config Config, hclBlocks []*HclBlock) error {
 	var err error
-	if setter, ok := config.(configOwnerSetter); ok {
-		setter.setConfigOwner(config)
+	var parallelism *int
+	if parallel, ok := config.(Parallelism); ok {
+		value := parallel.Parallelism()
+		parallelism = &value
+	}
+	if setter, ok := config.(parallelismSetter); ok {
+		setter.setParallelism(parallelism)
 	}
 
 	var blocks []Block

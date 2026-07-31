@@ -45,13 +45,6 @@ func (d *Dag) addEdge(from, to string) error {
 	return nil
 }
 
-func (d *Dag) runDag(c Config, onReady func(Block) error) error {
-	if parallel, ok := c.(Parallelism); ok {
-		return d.runDagOnParallel(c, parallel.Parallelism(), onReady)
-	}
-	return d.runDagSerial(c, onReady)
-}
-
 func (d *Dag) runDagSerial(c Config, onReady func(Block) error) error {
 	var err error
 	pending := linkedlistqueue.New()
