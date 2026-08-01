@@ -57,6 +57,99 @@ func TestNewHclBlock(t *testing.T) {
 	assert.NotNil(t, nb.Attributes()["attr3"])
 }
 
+func TestCloneHclBlockOwnsCoherentSyntaxTree(t *testing.T) {
+	code := `
+block "test" {
+  attr1 = "value1"
+  nested {
+    attr2 = "value2"
+    deep {
+      attr3 = "value3"
+    }
+  }
+}
+`
+	syntaxFile, diag := hclsyntax.ParseConfig([]byte(code), "test.hcl", hcl.InitialPos)
+	require.False(t, diag.HasErrors(), diag.Error())
+	writeFile, diag := hclwrite.ParseConfig([]byte(code), "test.hcl", hcl.InitialPos)
+	require.False(t, diag.HasErrors(), diag.Error())
+
+	original := NewHclBlock(
+		syntaxFile.Body.(*hclsyntax.Body).Blocks[0],
+		writeFile.Body().Blocks()[0],
+		NewForEach(cty.StringVal("key"), cty.StringVal("value")),
+	)
+	cloned := CloneHclBlock(original)
+
+	var assertOwnedClone func(*HclBlock, *HclBlock)
+	assertOwnedClone = func(source, clone *HclBlock) {
+		require.NotSame(t, source.Block, clone.Block)
+		require.NotSame(t, source.Body, clone.Body)
+		require.Equal(t, source.Body.SrcRange, clone.Body.SrcRange)
+		require.Equal(t, source.Body.EndRange, clone.Body.EndRange)
+		require.Equal(t, len(source.Attributes()), len(clone.Attributes()))
+		for name, sourceAttribute := range source.Attributes() {
+			cloneAttribute := clone.Attributes()[name]
+			require.NotSame(t, sourceAttribute.Attribute, cloneAttribute.Attribute)
+			require.Same(t, clone.Body.Attributes[name], cloneAttribute.Attribute)
+		}
+		require.Equal(t, len(source.NestedBlocks()), len(clone.NestedBlocks()))
+		for i := range source.NestedBlocks() {
+			require.Same(t, clone.Body.Blocks[i], clone.NestedBlocks()[i].Block)
+			assertOwnedClone(source.NestedBlocks()[i], clone.NestedBlocks()[i])
+		}
+	}
+	assertOwnedClone(original, cloned)
+	require.NotSame(t, original.ForEach, cloned.ForEach)
+
+	originalAttribute := original.Body.Attributes["attr1"]
+	require.NoError(t, cloned.evaluateAttributes(nil))
+	require.Same(t, originalAttribute, original.Body.Attributes["attr1"])
+	require.Same(t, cloned.Body.Attributes["attr1"], cloned.Attributes()["attr1"].Attribute)
+}
+
+func TestExpandDynamicBlocksDoesNotMutateInput(t *testing.T) {
+	code := `
+resource "dummy" "test" {
+  nested_block {
+    id   = 1
+    name = each.value
+  }
+}
+`
+	syntaxFile, diag := hclsyntax.ParseConfig([]byte(code), "test.hcl", hcl.InitialPos)
+	require.False(t, diag.HasErrors(), diag.Error())
+	writeFile, diag := hclwrite.ParseConfig([]byte(code), "test.hcl", hcl.InitialPos)
+	require.False(t, diag.HasErrors(), diag.Error())
+
+	original := NewHclBlock(
+		syntaxFile.Body.(*hclsyntax.Body).Blocks[0],
+		writeFile.Body().Blocks()[0],
+		nil,
+	)
+	originalNestedBlock := original.Body.Blocks[0]
+	originalNameAttribute := originalNestedBlock.Body.Attributes["name"]
+	evalContext := &hcl.EvalContext{Variables: map[string]cty.Value{
+		"each": cty.ObjectVal(map[string]cty.Value{
+			"key":   cty.StringVal("one"),
+			"value": cty.StringVal("first"),
+		}),
+	}}
+
+	expanded, err := original.ExpandDynamicBlocks(evalContext)
+	require.NoError(t, err)
+	require.Same(t, originalNestedBlock, original.Body.Blocks[0])
+	require.Same(t, originalNameAttribute, original.Body.Blocks[0].Body.Attributes["name"])
+	require.NotSame(t, original.Block, expanded.Block)
+	require.NotSame(t, originalNestedBlock, expanded.Body.Blocks[0])
+	require.Same(t, expanded.Body.Blocks[0], expanded.NestedBlocks()[0].Block)
+	require.Same(t, expanded.Body.Blocks[0].Body.Attributes["name"], expanded.NestedBlocks()[0].Attributes()["name"].Attribute)
+
+	value, diag := expanded.Body.Blocks[0].Body.Attributes["name"].Expr.Value(nil)
+	require.False(t, diag.HasErrors(), diag.Error())
+	require.True(t, value.RawEquals(cty.StringVal("first")))
+}
+
 func TestDynamicBlock_iteratorKey(t *testing.T) {
 	code := `resource "dummy" this {
 	dynamic "nested_block" {

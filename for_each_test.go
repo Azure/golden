@@ -50,6 +50,120 @@ func (s *forEachTestSuite) TestForEachBlockWithAttributeThatHasDefaultValue() {
 	}
 }
 
+func (s *forEachTestSuite) TestStaticNestedBlocksUseInstanceContext() {
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": `
+resource "dummy" "expanded" {
+  for_each = {
+    one   = "first"
+    two   = "second"
+    three = "third"
+  }
+
+  nested_block {
+    id   = 1
+    name = each.value
+
+    third_nested_block {
+      name = each.value
+    }
+  }
+}
+`,
+	})
+
+	hclBlocks, err := loadHclBlocks(false, "")
+	require.NoError(s.T(), err)
+	require.Len(s.T(), hclBlocks, 1)
+	sourceNestedAttribute := hclBlocks[0].NestedBlocks()[0].Attributes()["name"].Attribute
+
+	config, err := NewDummyConfig("", nil, hclBlocks, nil)
+	require.NoError(s.T(), err)
+	resources := Blocks[TestResource](config)
+	require.Len(s.T(), resources, 3)
+	for i := 0; i < len(resources); i++ {
+		for j := i + 1; j < len(resources); j++ {
+			left := resources[i].HclBlock()
+			right := resources[j].HclBlock()
+			s.NotSame(left.Block, right.Block)
+			s.NotSame(left.Body, right.Body)
+			s.NotSame(left.Body.Blocks[0], right.Body.Blocks[0])
+			s.NotSame(left.Body.Blocks[0].Body.Blocks[0], right.Body.Blocks[0].Body.Blocks[0])
+		}
+	}
+
+	plan, err := RunDummyPlan(config)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), plan.Resources, 3)
+
+	got := make(map[string][2]string, 3)
+	for _, resource := range plan.Resources {
+		block := resource.(*DummyResource)
+		require.Len(s.T(), block.NestedBlocks, 1)
+		require.Len(s.T(), block.NestedBlocks[0].ThirdNestedBlocks, 1)
+		got[block.Address()] = [2]string{
+			block.NestedBlocks[0].Name,
+			block.NestedBlocks[0].ThirdNestedBlocks[0].Name,
+		}
+	}
+
+	s.Equal(map[string][2]string{
+		"resource.dummy.expanded[one]":   {"first", "first"},
+		"resource.dummy.expanded[two]":   {"second", "second"},
+		"resource.dummy.expanded[three]": {"third", "third"},
+	}, got)
+	s.Same(sourceNestedAttribute, hclBlocks[0].Body.Blocks[0].Body.Attributes["name"])
+}
+
+func (s *forEachTestSuite) TestDynamicNestedBlocksUseInstanceContext() {
+	s.dummyFsWithFiles(map[string]string{
+		"test.hcl": `
+resource "dummy" "expanded" {
+  for_each = {
+    one   = "first"
+    two   = "second"
+    three = "third"
+  }
+
+  dynamic "nested_block" {
+    for_each = [each.value]
+    content {
+      id   = 1
+      name = nested_block.value
+
+      third_nested_block {
+        name = each.value
+      }
+    }
+  }
+}
+`,
+	})
+
+	config, err := BuildDummyConfig("", "", nil, nil)
+	require.NoError(s.T(), err)
+	plan, err := RunDummyPlan(config)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), plan.Resources, 3)
+
+	got := make(map[string][2]string, 3)
+	for _, resource := range plan.Resources {
+		block := resource.(*DummyResource)
+		require.Len(s.T(), block.NestedBlocks, 1)
+		require.Len(s.T(), block.NestedBlocks[0].ThirdNestedBlocks, 1)
+		got[block.Address()] = [2]string{
+			block.NestedBlocks[0].Name,
+			block.NestedBlocks[0].ThirdNestedBlocks[0].Name,
+		}
+	}
+
+	s.Equal(map[string][2]string{
+		"resource.dummy.expanded[one]":   {"first", "first"},
+		"resource.dummy.expanded[two]":   {"second", "second"},
+		"resource.dummy.expanded[three]": {"third", "third"},
+	}, got)
+}
+
 func (s *forEachTestSuite) TestForEachBlockInvolvingVariable() {
 	cases := []struct {
 		config string

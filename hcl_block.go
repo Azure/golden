@@ -65,6 +65,10 @@ func AsHclBlocks(syntaxBlocks hclsyntax.Blocks, writeBlocks []*hclwrite.Block) [
 }
 
 func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock, error) {
+	return CloneHclBlock(hb).expandDynamicBlocks(evalContext)
+}
+
+func (hb *HclBlock) expandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock, error) {
 	newHb := &HclBlock{
 		Block:      hb.Block,
 		wb:         hb.wb,
@@ -75,7 +79,7 @@ func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock
 	var newNestedBlocks []*hclsyntax.Block
 	for _, block := range hb.blocks {
 		if block.Type != "dynamic" {
-			expandedBlock, err := block.ExpandDynamicBlocks(evalContext)
+			expandedBlock, err := block.expandDynamicBlocks(evalContext)
 			if err != nil {
 				return nil, err
 			}
@@ -118,7 +122,7 @@ func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock
 					return nil, fmt.Errorf("`dynamic` block should contain `content` block only")
 				}
 
-				expandedInnerBlock, err := innerBlock.ExpandDynamicBlocks(newContext)
+				expandedInnerBlock, err := innerBlock.expandDynamicBlocks(newContext)
 				if err != nil {
 					return nil, err
 				}
@@ -210,54 +214,56 @@ func clone[T any](v *T) *T {
 	return &c
 }
 func CloneHclBlock(hb *HclBlock) *HclBlock {
-	// Clone the hclsyntax.Block
 	cloneBlock := CloneHclSyntaxBlock(hb.Block)
+	return cloneHclBlock(hb, cloneBlock)
+}
 
-	// Clone the HclBlock
+func cloneHclBlock(hb *HclBlock, cloneBlock *hclsyntax.Block) *HclBlock {
+	// hclwrite blocks are shared because Golden uses them only to read expression tokens.
 	cloneHb := &HclBlock{
 		Block:      cloneBlock,
-		wb:         clone(hb.wb),
-		ForEach:    hb.ForEach,
-		attributes: make(map[string]*HclAttribute),
+		wb:         hb.wb,
+		attributes: make(map[string]*HclAttribute, len(cloneBlock.Body.Attributes)),
 		blocks:     make([]*HclBlock, len(hb.blocks)),
 	}
-
-	// Clone attributes
-	for name, attr := range hb.attributes {
-		cloneHb.attributes[name] = clone(attr)
+	if hb.ForEach != nil {
+		cloneHb.ForEach = clone(hb.ForEach)
 	}
 
-	// Clone blocks recursively
+	for name, attr := range cloneBlock.Body.Attributes {
+		var writeAttribute *hclwrite.Attribute
+		if sourceAttribute, ok := hb.attributes[name]; ok {
+			writeAttribute = sourceAttribute.wa
+		}
+		cloneHb.attributes[name] = NewHclAttribute(attr, writeAttribute)
+	}
+
 	for i, block := range hb.blocks {
-		cloneHb.blocks[i] = CloneHclBlock(block)
+		cloneHb.blocks[i] = cloneHclBlock(block, cloneBlock.Body.Blocks[i])
 	}
 
 	return cloneHb
 }
 
 func CloneHclSyntaxBlock(hb *hclsyntax.Block) *hclsyntax.Block {
-	// Clone the block itself
 	cloneBlock := clone(hb)
+	cloneBlock.Labels = append([]string(nil), hb.Labels...)
+	cloneBlock.LabelRanges = append([]hcl.Range(nil), hb.LabelRanges...)
 
-	// Clone the body
-	cloneBody := &hclsyntax.Body{
-		Attributes: make(hclsyntax.Attributes),
-		Blocks:     make(hclsyntax.Blocks, len(hb.Body.Blocks)),
-	}
+	cloneBody := clone(hb.Body)
+	cloneBody.Attributes = make(hclsyntax.Attributes, len(hb.Body.Attributes))
+	cloneBody.Blocks = make(hclsyntax.Blocks, len(hb.Body.Blocks))
 
-	// Clone attributes
 	for name, attr := range hb.Body.Attributes {
+		// Expressions are immutable after parsing, so clones can safely share them.
 		cloneBody.Attributes[name] = clone(attr)
 	}
 
-	// Clone blocks recursively
 	for i, block := range hb.Body.Blocks {
 		cloneBody.Blocks[i] = CloneHclSyntaxBlock(block)
 	}
 
-	// Assign the cloned body to the cloned block
 	cloneBlock.Body = cloneBody
-
 	return cloneBlock
 }
 
@@ -267,12 +273,21 @@ func (hb *HclBlock) evaluateAttributes(ctx *hcl.EvalContext) error {
 		if diag.HasErrors() {
 			return diag
 		}
-		hb.Body.Attributes[attributeName] = &hclsyntax.Attribute{
+		evaluatedAttribute := &hclsyntax.Attribute{
 			Name: attributeName,
 			Expr: &hclsyntax.LiteralValueExpr{
 				Val: v,
 			},
-			SrcRange: attribute.SrcRange,
+			SrcRange:    attribute.SrcRange,
+			NameRange:   attribute.NameRange,
+			EqualsRange: attribute.EqualsRange,
+		}
+		hb.Body.Attributes[attributeName] = evaluatedAttribute
+		if wrappedAttribute, ok := hb.attributes[attributeName]; ok {
+			hb.attributes[attributeName] = &HclAttribute{
+				Attribute: evaluatedAttribute,
+				wa:        wrappedAttribute.wa,
+			}
 		}
 	}
 	return nil

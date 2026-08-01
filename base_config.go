@@ -337,7 +337,8 @@ func (c *BaseConfig) expandBlock(b Block) ([]Block, error) {
 	iterator := forEachValue.ElementIterator()
 	for iterator.Next() {
 		key, value := iterator.Element()
-		newBlock := NewHclBlock(hclBlock.Block, hclBlock.wb, NewForEach(key, value))
+		newBlock := CloneHclBlock(hclBlock)
+		newBlock.ForEach = NewForEach(key, value)
 		nb, err := wrapBlock(b.Config(), newBlock)
 		if err != nil {
 			return nil, err
