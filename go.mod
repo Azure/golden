@@ -15,7 +15,7 @@ require (
 	github.com/prashantv/gostub v1.1.0
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
-	github.com/zclconf/go-cty v1.18.1
+	github.com/zclconf/go-cty v1.19.0
 	golang.org/x/text v0.37.0
 )
 
@@ -24,6 +24,7 @@ require (
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-cidr v1.1.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
+	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/bmatcuk/doublestar v1.1.5 // indirect
