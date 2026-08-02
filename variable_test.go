@@ -371,6 +371,128 @@ func (s *variableSuite) TestExecuteBeforePlan_ObjectType() {
 	}
 }
 
+func (s *variableSuite) TestExecuteBeforePlan_ObjectOptionalAttributeDefaults() {
+	const providerVariable = `variable "provider" {
+  type = object({
+    type     = optional(string, "openai")
+    endpoint = string
+    retry = optional(object({
+      attempts = optional(number, 3)
+    }), {})
+  })
+  default = {
+    endpoint = "https://default.test/v1"
+  }
+}`
+	providerValue := func(providerType, endpoint string, attempts int64) cty.Value {
+		return cty.ObjectVal(map[string]cty.Value{
+			"type":     cty.StringVal(providerType),
+			"endpoint": cty.StringVal(endpoint),
+			"retry": cty.ObjectVal(map[string]cty.Value{
+				"attempts": cty.NumberIntVal(attempts),
+			}),
+		})
+	}
+	cases := []struct {
+		desc          string
+		variableDef   string
+		cliFlags      []CliFlagAssignedVariables
+		files         map[string]string
+		envValue      string
+		expectedValue cty.Value
+		expectedError string
+	}{
+		{
+			desc:          "applies nested defaults to the variable default",
+			variableDef:   providerVariable,
+			expectedValue: providerValue("openai", "https://default.test/v1", 3),
+		},
+		{
+			desc:        "applies defaults to a partial CLI value",
+			variableDef: providerVariable,
+			cliFlags: []CliFlagAssignedVariables{
+				NewCliFlagAssignedVariable("provider", `{
+  type     = "azure"
+  endpoint = "https://cli.test/v1"
+}`),
+			},
+			expectedValue: providerValue("azure", "https://cli.test/v1", 3),
+		},
+		{
+			desc:        "applies nested defaults to a variable file value",
+			variableDef: providerVariable,
+			cliFlags: []CliFlagAssignedVariables{
+				NewCliFlagAssignedVariableFile("/test.tfvars"),
+			},
+			files: map[string]string{
+				"/test.tfvars": `provider = {
+  endpoint = "https://file.test/v1"
+  retry    = {}
+}`,
+			},
+			expectedValue: providerValue("openai", "https://file.test/v1", 3),
+		},
+		{
+			desc:        "preserves explicit environment values",
+			variableDef: providerVariable,
+			envValue: `{
+  type     = "custom"
+  endpoint = "https://env.test/v1"
+  retry = {
+    attempts = 5
+  }
+}`,
+			expectedValue: providerValue("custom", "https://env.test/v1", 5),
+		},
+		{
+			desc:        "rejects a partial value missing a required attribute",
+			variableDef: providerVariable,
+			cliFlags: []CliFlagAssignedVariables{
+				NewCliFlagAssignedVariable("provider", `{}`),
+			},
+			expectedError: "incompatible type for var.provider",
+		},
+		{
+			desc: "supports optional attributes without explicit defaults",
+			variableDef: `variable "provider" {
+  type = object({
+    endpoint    = string
+    description = optional(string)
+  })
+  default = {
+    endpoint = "https://example.test/v1"
+  }
+}`,
+			expectedValue: cty.ObjectVal(map[string]cty.Value{
+				"endpoint":    cty.StringVal("https://example.test/v1"),
+				"description": cty.NullVal(cty.String),
+			}),
+		},
+	}
+
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			if c.envValue != "" {
+				s.T().Setenv("FT_VAR_provider", c.envValue)
+			}
+			s.dummyFsWithFiles(c.files)
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.variableDef,
+			})
+			config, err := BuildDummyConfig("/", "", c.cliFlags, nil)
+			if c.expectedError != "" {
+				require.Error(s.T(), err)
+				s.Contains(err.Error(), c.expectedError)
+				return
+			}
+			require.NoError(s.T(), err)
+			variable := Blocks[*VariableBlock](config)[0]
+			s.True(c.expectedValue.RawEquals(*variable.variableValue),
+				"expected %#v, got %#v", c.expectedValue, *variable.variableValue)
+		})
+	}
+}
+
 func (s *variableSuite) TestExecuteBeforePlan_Validation() {
 	cases := []struct {
 		desc                      string

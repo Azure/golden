@@ -31,10 +31,11 @@ type VariableValidation struct {
 
 type VariableBlock struct {
 	*BaseBlock
-	Description   *string
-	Validations   []VariableValidation
-	variableType  *cty.Type
-	variableValue *cty.Value
+	Description      *string
+	Validations      []VariableValidation
+	variableType     *cty.Type
+	variableDefaults *typeexpr.Defaults
+	variableValue    *cty.Value
 }
 
 func (v *VariableBlock) Decode(block *HclBlock, context *hcl.EvalContext) error {
@@ -97,6 +98,10 @@ func (v *VariableBlock) ExecuteBeforePlan() error {
 	if value == nil {
 		return fmt.Errorf("cannot evaluate value for var.%s", v.Name())
 	}
+	if v.variableDefaults != nil {
+		valueWithDefaults := v.variableDefaults.Apply(*value)
+		value = &valueWithDefaults
+	}
 	if v.variableType != nil && !value.Type().Equals(*v.variableType) {
 		convertedValue, err := convert.Convert(*value, *v.variableType)
 		if err != nil {
@@ -112,13 +117,15 @@ func (v *VariableBlock) parseVariableType() error {
 	typeAttr, ok := v.HclBlock().Body.Attributes["type"]
 	if !ok {
 		v.variableType = nil
+		v.variableDefaults = nil
 		return nil
 	}
-	t, diag := typeexpr.Type(typeAttr.Expr)
+	t, defaults, diag := typeexpr.TypeConstraintWithDefaults(typeAttr.Expr)
 	if diag.HasErrors() {
 		return diag
 	}
 	v.variableType = &t
+	v.variableDefaults = defaults
 	return nil
 }
 
