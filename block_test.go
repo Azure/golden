@@ -89,6 +89,49 @@ func (d *DummyData) ExecuteDuringPlan() error {
 	return nil
 }
 
+var _ Valuable = (*ValuableDummyData)(nil)
+
+type ValuableDummyData struct {
+	*BaseData
+	*BaseBlock
+	ReflectedValue  string      `hcl:"reflected_value"`
+	ReflectedValues []cty.Value `hcl:"reflected_values"`
+}
+
+func (d *ValuableDummyData) Type() string {
+	return "valuable"
+}
+
+func (d *ValuableDummyData) ExecuteDuringPlan() error {
+	return nil
+}
+
+func (d *ValuableDummyData) Values() map[string]cty.Value {
+	return map[string]cty.Value{
+		"custom_value": cty.StringVal("from Values"),
+		"id":           cty.StringVal("custom-id"),
+	}
+}
+
+func TestBlockToCtyValueUsesValuableValuesWithoutReflection(t *testing.T) {
+	block := &ValuableDummyData{
+		BaseData:       &BaseData{},
+		BaseBlock:      &BaseBlock{id: "block-id"},
+		ReflectedValue: "from reflection",
+		ReflectedValues: []cty.Value{
+			cty.ObjectVal(map[string]cty.Value{"first": cty.True}),
+			cty.ObjectVal(map[string]cty.Value{"second": cty.True}),
+		},
+	}
+
+	value := blockToCtyValue(block)
+
+	assert.Equal(t, "from Values", value.GetAttr("custom_value").AsString())
+	assert.False(t, value.Type().HasAttribute("reflected_value"))
+	assert.False(t, value.Type().HasAttribute("reflected_values"))
+	assert.Equal(t, "block-id", value.GetAttr("id").AsString())
+}
+
 var _ TestResource = &DummyResource{}
 
 type DummyResource struct {

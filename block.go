@@ -215,7 +215,12 @@ func valuesWithEmptyForEach[T Block](blocks []T, emptyForEachBlocks []Block) cty
 func blockToCtyValue(b Block) cty.Value {
 	blockValues := map[string]cty.Value{}
 	baseCtyValues := b.BaseValues()
-	ctyValues := Value(b)
+	var ctyValues map[string]cty.Value
+	if valuable, ok := b.(Valuable); ok {
+		ctyValues = valuable.Values()
+	} else {
+		ctyValues = Value(b)
+	}
 	for k, v := range ctyValues {
 		blockValues[k] = v
 	}
