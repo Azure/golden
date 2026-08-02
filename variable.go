@@ -97,7 +97,7 @@ func (v *VariableBlock) ExecuteBeforePlan() error {
 	if value == nil {
 		return fmt.Errorf("cannot evaluate value for var.%s", v.Name())
 	}
-	if v.variableType != nil && value.Type() != *v.variableType {
+	if v.variableType != nil && !value.Type().Equals(*v.variableType) {
 		convertedValue, err := convert.Convert(*value, *v.variableType)
 		if err != nil {
 			return fmt.Errorf("incompatible type for var.%s, want %s, got %s", v.Name(), v.variableType.GoString(), value.Type().GoString())

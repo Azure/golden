@@ -298,6 +298,79 @@ func (s *variableSuite) TestExecuteBeforePlan_TypeConvert() {
 	}
 }
 
+func (s *variableSuite) TestExecuteBeforePlan_ObjectType() {
+	cases := []struct {
+		desc          string
+		variableDef   string
+		expectedValue cty.Value
+		expectedError string
+	}{
+		{
+			desc: "accepts an object with the declared type",
+			variableDef: `variable "provider" {
+  type = object({
+    type     = string
+    endpoint = string
+  })
+  default = {
+    type     = "openai"
+    endpoint = "https://example.test/v1"
+  }
+}`,
+			expectedValue: cty.ObjectVal(map[string]cty.Value{
+				"type":     cty.StringVal("openai"),
+				"endpoint": cty.StringVal("https://example.test/v1"),
+			}),
+		},
+		{
+			desc: "converts compatible object attributes",
+			variableDef: `variable "provider" {
+  type = object({
+    name    = string
+    enabled = string
+  })
+  default = {
+    name    = "api"
+    enabled = true
+  }
+}`,
+			expectedValue: cty.ObjectVal(map[string]cty.Value{
+				"name":    cty.StringVal("api"),
+				"enabled": cty.StringVal("true"),
+			}),
+		},
+		{
+			desc: "rejects incompatible object attributes",
+			variableDef: `variable "provider" {
+  type = object({
+    endpoint = string
+  })
+  default = {
+    endpoint = []
+  }
+}`,
+			expectedError: "incompatible type for var.provider",
+		},
+	}
+
+	for _, c := range cases {
+		s.Run(c.desc, func() {
+			s.dummyFsWithFiles(map[string]string{
+				"test.hcl": c.variableDef,
+			})
+			config, err := BuildDummyConfig("/", "", nil, nil)
+			if c.expectedError != "" {
+				require.Error(s.T(), err)
+				s.Contains(err.Error(), c.expectedError)
+				return
+			}
+			require.NoError(s.T(), err)
+			variable := Blocks[*VariableBlock](config)[0]
+			s.Equal(c.expectedValue, *variable.variableValue)
+		})
+	}
+}
+
 func (s *variableSuite) TestExecuteBeforePlan_Validation() {
 	cases := []struct {
 		desc                      string
