@@ -22,6 +22,7 @@ type Config interface {
 	EvalContext() *hcl.EvalContext
 	RunPrePlan() error
 	RunPlan() error
+	RunApply(func(Block) error) error
 	ValidBlockAddress(address string) bool
 	DslFullName() string
 	DslAbbreviation() string

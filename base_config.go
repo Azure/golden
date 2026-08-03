@@ -161,6 +161,10 @@ func (c *BaseConfig) RunPlan() error {
 	return c.runDag(dagPlan)
 }
 
+func (c *BaseConfig) RunApply(onReady func(Block) error) error {
+	return c.runDag(onReady)
+}
+
 func (c *BaseConfig) GetVertices() map[string]interface{} {
 	if c.d == nil {
 		return nil
