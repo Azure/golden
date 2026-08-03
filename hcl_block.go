@@ -2,6 +2,8 @@ package golden
 
 import (
 	"fmt"
+	"sort"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -55,11 +57,59 @@ func NewForEach(key, value cty.Value) *ForEach {
 func AsHclBlocks(syntaxBlocks hclsyntax.Blocks, writeBlocks []*hclwrite.Block) []*HclBlock {
 	var blocks []*HclBlock
 	for i, b := range syntaxBlocks {
-		var rbs = readRawHclSyntaxBlock(b)
-		var wbs = readRawHclWriteBlock(writeBlocks[i])
-		for i, hb := range rbs {
-			blocks = append(blocks, NewHclBlock(hb, wbs[i], nil))
+		if b.Type == "locals" {
+			blocks = append(blocks, readRawHclLocalBlocks(b, writeBlocks[i])...)
+			continue
 		}
+		var rbs = readRawHclSyntaxBlock(b)
+		for _, hb := range rbs {
+			blocks = append(blocks, NewHclBlock(hb, writeBlocks[i], nil))
+		}
+	}
+	return blocks
+}
+
+func readRawHclLocalBlocks(syntaxBlock *hclsyntax.Block, writeBlock *hclwrite.Block) []*HclBlock {
+	syntaxAttributes := syntaxBlock.Body.Attributes
+	writeAttributes := writeBlock.Body().Attributes()
+	if len(syntaxAttributes) != len(writeAttributes) {
+		panic("syntax and write locals blocks contain different numbers of attributes")
+	}
+
+	names := make([]string, 0, len(syntaxAttributes))
+	for name := range syntaxAttributes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	blocks := make([]*HclBlock, 0, len(names))
+	for _, name := range names {
+		syntaxAttribute := syntaxAttributes[name]
+		writeAttribute, ok := writeAttributes[name]
+		if !ok {
+			panic(fmt.Sprintf("write attribute %q is missing from the corresponding locals block", name))
+		}
+
+		rb := &hclsyntax.Block{
+			Type:   "local",
+			Labels: []string{"", name},
+			Body: &hclsyntax.Body{
+				Attributes: map[string]*hclsyntax.Attribute{
+					"value": {
+						Name:        "value",
+						Expr:        syntaxAttribute.Expr,
+						SrcRange:    syntaxAttribute.SrcRange,
+						NameRange:   syntaxAttribute.NameRange,
+						EqualsRange: syntaxAttribute.EqualsRange,
+					},
+				},
+				SrcRange: syntaxAttribute.NameRange,
+				EndRange: syntaxAttribute.SrcRange,
+			},
+		}
+		wb := hclwrite.NewBlock("local", []string{"", name})
+		wb.Body().SetAttributeRaw("value", writeAttribute.Expr().BuildTokens(hclwrite.Tokens{}))
+		blocks = append(blocks, NewHclBlock(rb, wb, nil))
 	}
 	return blocks
 }
@@ -137,30 +187,6 @@ func (hb *HclBlock) ExpandDynamicBlocks(evalContext *hcl.EvalContext) (*HclBlock
 
 func readRawHclSyntaxBlock(b *hclsyntax.Block) []*hclsyntax.Block {
 	switch b.Type {
-	case "locals":
-		{
-			var newBlocks []*hclsyntax.Block
-			for _, attr := range b.Body.Attributes {
-				newBlocks = append(newBlocks, &hclsyntax.Block{
-					Type:   "local",
-					Labels: []string{"", attr.Name},
-					Body: &hclsyntax.Body{
-						Attributes: map[string]*hclsyntax.Attribute{
-							"value": {
-								Name:        "value",
-								Expr:        attr.Expr,
-								SrcRange:    attr.SrcRange,
-								NameRange:   attr.NameRange,
-								EqualsRange: attr.EqualsRange,
-							},
-						},
-						SrcRange: attr.NameRange,
-						EndRange: attr.SrcRange,
-					},
-				})
-			}
-			return newBlocks
-		}
 	case "variable":
 		{
 			return []*hclsyntax.Block{
@@ -190,19 +216,6 @@ func readRawHclSyntaxBlock(b *hclsyntax.Block) []*hclsyntax.Block {
 
 		return []*hclsyntax.Block{b}
 	}
-}
-
-func readRawHclWriteBlock(b *hclwrite.Block) []*hclwrite.Block {
-	if b.Type() != "locals" {
-		return []*hclwrite.Block{b}
-	}
-	var newBlocks []*hclwrite.Block
-	for n, attr := range b.Body().Attributes() {
-		nb := hclwrite.NewBlock("local", []string{"", n})
-		nb.Body().SetAttributeRaw("value", attr.Expr().BuildTokens(hclwrite.Tokens{}))
-		newBlocks = append(newBlocks, nb)
-	}
-	return newBlocks
 }
 
 func clone[T any](v *T) *T {

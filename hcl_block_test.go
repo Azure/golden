@@ -1,16 +1,19 @@
 package golden
 
 import (
-	"github.com/prashantv/gostub"
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/require"
-	"github.com/zclconf/go-cty/cty"
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/prashantv/gostub"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestNewHclBlock(t *testing.T) {
@@ -55,6 +58,44 @@ func TestNewHclBlock(t *testing.T) {
 	assert.Equal(t, "nested", nb.Type)
 	assert.Equal(t, 1, len(nb.Attributes()))
 	assert.NotNil(t, nb.Attributes()["attr3"])
+}
+
+func TestAsHclBlocksPreservesLocalExpressionNames(t *testing.T) {
+	var source strings.Builder
+	source.WriteString("locals {\n")
+	expectedNames := make([]string, 64)
+	for index := range expectedNames {
+		name := fmt.Sprintf("local_%02d", index)
+		expectedNames[index] = name
+		fmt.Fprintf(&source, "  %s = %q\n", name, fmt.Sprintf("expression_%02d", index))
+	}
+	source.WriteString("}\n")
+
+	syntaxFile, diagnostics := hclsyntax.ParseConfig([]byte(source.String()), "locals.hcl", hcl.InitialPos)
+	require.False(t, diagnostics.HasErrors(), diagnostics.Error())
+	writeFile, diagnostics := hclwrite.ParseConfig([]byte(source.String()), "locals.hcl", hcl.InitialPos)
+	require.False(t, diagnostics.HasErrors(), diagnostics.Error())
+
+	for range 1024 {
+		blocks := AsHclBlocks(
+			syntaxFile.Body.(*hclsyntax.Body).Blocks,
+			writeFile.Body().Blocks(),
+		)
+		require.Len(t, blocks, len(expectedNames))
+		actualNames := make([]string, len(blocks))
+		for index, block := range blocks {
+			name := block.Labels[1]
+			actualNames[index] = name
+			suffix := strings.TrimPrefix(name, "local_")
+			expectedExpression := "expression_" + suffix
+			attribute := block.Attributes()["value"]
+			require.Equal(t, strconv.Quote(expectedExpression), attribute.ExprString(), name)
+			value, err := attribute.Value(nil)
+			require.NoError(t, err, name)
+			require.Equal(t, expectedExpression, value.AsString(), name)
+		}
+		require.Equal(t, expectedNames, actualNames)
+	}
 }
 
 func TestDynamicBlock_iteratorKey(t *testing.T) {
