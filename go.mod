@@ -14,7 +14,7 @@ require (
 	github.com/lonegunmanb/hclfuncs v0.12.0
 	github.com/prashantv/gostub v1.1.0
 	github.com/spf13/afero v1.15.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/zclconf/go-cty v1.18.1
 	golang.org/x/text v0.37.0
 )
@@ -28,7 +28,6 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/bmatcuk/doublestar v1.1.5 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
@@ -62,7 +61,6 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/timandy/routine v1.1.5 // indirect
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
